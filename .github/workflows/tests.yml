@@ -1,0 +1,40 @@
+name: Tests
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  algorithmes:
+    name: Phase 1 + Phase 2 (sans ROS)
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python: ["3.10", "3.12"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python }}
+      - run: pip install numpy matplotlib pytest
+      - name: Phase 1 (A*, Dijkstra, RRT)
+        working-directory: 03_Phase1_Algorithmes
+        env:
+          MPLBACKEND: Agg
+        run: python -m pytest -q
+      - name: Phase 2 (paquet ROS 2, logique testable sans ROS)
+        working-directory: 04_Phase2_Navigation_ROS2/navigation_autonome
+        run: python -m pytest -q test
+
+  station:
+    name: Station mobile (robot virtuel, ~5 min)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - run: pip install numpy pytest
+      - working-directory: 07_Station_mobile
+        run: python -m pytest -q tests

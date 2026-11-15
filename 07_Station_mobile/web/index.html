@@ -1,0 +1,1528 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#08090b">
+<title>TB3 Ground Control</title>
+<style>
+:root {
+  --fond: #08090b;
+  --coque-1: #2b3038; --coque-2: #1a1d22; --coque-3: #121418;
+  --arete: rgba(255,255,255,.07);
+  --ecran: #050b10;
+  --hud: #9fe8ff; --hud-doux: #5b7d8c; --hud-ligne: rgba(120,200,230,.10);
+  --vert: #39e58c; --bleu: #49a8ff; --jaune: #ffcf3f; --rouge: #ff4757; --orange: #ff9f43;
+  --texte: #e9eef3; --texte-doux: #8a94a0;
+  --mono: ui-monospace, "SF Mono", "Cascadia Mono", Menlo, Consolas, monospace;
+}
+* { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+html, body { margin: 0; height: 100%; background: var(--fond); color: var(--texte);
+  font: 14px/1.3 -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Roboto, sans-serif;
+  overscroll-behavior: none; -webkit-user-select: none; user-select: none; touch-action: manipulation; }
+body { display: flex; justify-content: center; align-items: center; min-height: 100%;
+  padding: max(8px, env(safe-area-inset-top)) 8px max(8px, env(safe-area-inset-bottom));
+  background: radial-gradient(120% 80% at 50% 0%, #1a1f27 0%, #08090b 60%); overflow: hidden; }
+
+/* ===================== COQUE DE LA CONSOLE ===================== */
+.console { position: relative; width: 100%; max-width: 460px; height: 100%; max-height: 940px;
+  display: grid; grid-template-rows: minmax(0, 1fr) auto auto auto; gap: 10px;
+  padding: 22px 14px 16px; border-radius: 38px;
+  background:
+    radial-gradient(140% 60% at 50% -10%, rgba(255,255,255,.10), transparent 55%),
+    linear-gradient(180deg, var(--coque-1) 0%, var(--coque-2) 45%, var(--coque-3) 100%);
+  box-shadow: 0 0 0 1px #000, inset 0 1px 0 rgba(255,255,255,.14), inset 0 -2px 6px rgba(0,0,0,.6),
+    inset 0 0 0 2px rgba(255,255,255,.025), 0 30px 60px rgba(0,0,0,.65); }
+.console::before { /* texture grain */ content: ""; position: absolute; inset: 0; border-radius: inherit;
+  pointer-events: none; opacity: .35; mix-blend-mode: overlay;
+  background-image: repeating-linear-gradient(45deg, rgba(255,255,255,.035) 0 1px, transparent 1px 3px); }
+.vis { position: absolute; width: 9px; height: 9px; border-radius: 50%;
+  background: radial-gradient(circle at 35% 35%, #59606b, #1d2026 70%);
+  box-shadow: inset 0 0 0 1px rgba(0,0,0,.6); }
+.vis::after { content: ""; position: absolute; left: 2px; right: 2px; top: 4px; height: 1px; background: #111; transform: rotate(35deg); }
+.vis.hg { left: 16px; top: 14px; } .vis.hd { right: 16px; top: 14px; }
+.vis.bg { left: 16px; bottom: 14px; } .vis.bd { right: 16px; bottom: 14px; }
+
+/* gâchettes L / R */
+.gachette { position: absolute; top: -9px; width: 92px; height: 22px; border: 0; padding: 0 0 6px;
+  border-radius: 14px 14px 4px 4px; color: #aab3be; font: 700 11px/1 var(--mono); letter-spacing: 1px;
+  background: linear-gradient(180deg, #3a414b, #22262c); box-shadow: 0 -1px 0 rgba(255,255,255,.12) inset, 0 2px 0 #000; z-index: 0; }
+.gachette.g { left: 34px; } .gachette.d { right: 34px; }
+.gachette:active, .gachette.presse { transform: translateY(3px); background: linear-gradient(180deg, #2f353d, #1d2025); }
+
+/* ===================== ÉCRAN ===================== */
+.module-ecran { position: relative; border-radius: 22px; padding: 12px 12px 10px; min-height: 0;
+  background: linear-gradient(180deg, #0d0f12, #050607);
+  box-shadow: inset 0 0 0 1px rgba(255,255,255,.06), inset 0 2px 10px rgba(0,0,0,.9), 0 1px 0 rgba(255,255,255,.08);
+  display: flex; flex-direction: column; gap: 6px; }
+.bandeau-ecran { display: flex; justify-content: space-between; align-items: center; padding: 0 4px;
+  font: 600 9.5px/1 var(--mono); letter-spacing: 1.6px; color: #59626d; text-transform: uppercase; }
+.led-alim { display: inline-block; width: 6px; height: 6px; border-radius: 50%; margin-right: 6px; vertical-align: 1px;
+  background: var(--vert); box-shadow: 0 0 6px var(--vert); }
+.ecran { position: relative; flex: 1; min-height: 0; border-radius: 10px; overflow: hidden; background: var(--ecran);
+  box-shadow: inset 0 0 0 1px #000, inset 0 0 24px rgba(0,0,0,.9); }
+.ecran canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; }
+.reflet { position: absolute; inset: 0; pointer-events: none; z-index: 5;
+  background: linear-gradient(125deg, rgba(255,255,255,.075) 0%, rgba(255,255,255,.02) 28%, transparent 42%),
+              repeating-linear-gradient(0deg, rgba(0,0,0,.10) 0 1px, transparent 1px 3px); }
+
+/* HUD */
+.hud-haut, .hud-bas { position: absolute; left: 0; right: 0; z-index: 3; display: flex; align-items: center;
+  gap: 6px; padding: 7px 8px; font: 600 11px/1 var(--mono); color: var(--hud); pointer-events: none; }
+.hud-haut { top: 0; background: linear-gradient(180deg, rgba(5,11,16,.92), rgba(5,11,16,0)); }
+.hud-bas { bottom: 0; flex-direction: column; align-items: stretch; gap: 5px;
+  background: linear-gradient(0deg, rgba(5,11,16,.95) 40%, rgba(5,11,16,0)); padding-top: 18px; }
+.puce { display: inline-flex; align-items: center; gap: 5px; padding: 4px 7px; border-radius: 6px;
+  border: 1px solid rgba(159,232,255,.22); background: rgba(10,30,40,.55); white-space: nowrap; }
+.puce.mode-sim { color: var(--jaune); border-color: rgba(255,207,63,.4); }
+.puce.mode-robot { color: var(--vert); border-color: rgba(57,229,140,.4); }
+.puce.algo { color: #fff; }
+.crans { display: inline-flex; gap: 2px; align-items: flex-end; vertical-align: -1px; }
+.crans b { display: block; width: 4px; border-radius: 1px; background: rgba(159,232,255,.25); }
+.crans b:nth-child(1) { height: 5px; } .crans b:nth-child(2) { height: 8px; } .crans b:nth-child(3) { height: 11px; }
+.crans b.on { background: var(--orange); box-shadow: 0 0 5px rgba(255,159,67,.7); }
+.pilule .crans b { width: 3px; } .pilule .crans b:nth-child(1) { height: 4px; } .pilule .crans b:nth-child(2) { height: 6px; } .pilule .crans b:nth-child(3) { height: 8px; }
+.espace { flex: 1; }
+.signal { display: inline-flex; gap: 2px; align-items: flex-end; height: 10px; }
+.signal i { width: 3px; background: var(--hud-doux); border-radius: 1px; }
+.signal i:nth-child(1) { height: 4px; } .signal i:nth-child(2) { height: 7px; } .signal i:nth-child(3) { height: 10px; }
+.signal.ok i { background: var(--vert); } .signal.ko i { background: var(--rouge); }
+.batt { display: inline-flex; align-items: center; gap: 5px; white-space: nowrap; }
+@media (max-width: 480px) { #puceVue { display: none; } }
+.batt-corps { position: relative; width: 22px; height: 11px; border: 1.5px solid currentColor; border-radius: 3px; }
+.batt-corps::after { content: ""; position: absolute; right: -4px; top: 2.5px; width: 2px; height: 4px; background: currentColor; border-radius: 0 1px 1px 0; }
+.batt-niveau { position: absolute; left: 1px; top: 1px; bottom: 1px; border-radius: 1px; background: var(--vert); }
+.batt.alerte { color: var(--jaune); } .batt.alerte .batt-niveau { background: var(--jaune); }
+.statut { display: flex; align-items: center; gap: 7px; font-size: 12px; letter-spacing: .5px; }
+.statut .pastille { width: 8px; height: 8px; border-radius: 50%; background: var(--hud-doux); flex: none; }
+.statut.attente .pastille { background: var(--hud); }
+.statut.planification .pastille, .statut.obstacle .pastille { background: var(--jaune); animation: clignote .6s infinite; }
+.statut.en_route .pastille { background: var(--vert); box-shadow: 0 0 8px var(--vert); }
+.statut.arrive .pastille { background: var(--vert); }
+.statut.echec .pastille, .statut.urgence .pastille { background: var(--rouge); animation: clignote .4s infinite; }
+.statut.manuel .pastille { background: var(--bleu); }
+.mesures { display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px; }
+.mesure { background: rgba(10,30,40,.55); border: 1px solid var(--hud-ligne); border-radius: 6px; padding: 4px 5px; }
+.mesure b { display: block; color: #fff; font-size: 12.5px; font-variant-numeric: tabular-nums; }
+.mesure span { display: block; color: var(--hud-doux); font-size: 8.5px; letter-spacing: 1px; margin-top: 2px; }
+.bulle { position: absolute; z-index: 4; left: 50%; top: 40px; transform: translate(-50%, -8px) scale(.96);
+  max-width: 82%; padding: 7px 12px; border-radius: 12px; background: rgba(255,255,255,.95); color: #0a1218;
+  font: 700 13px/1.25 -apple-system, "Segoe UI", sans-serif; box-shadow: 0 6px 20px rgba(0,0,0,.5);
+  opacity: 0; transition: opacity .2s, transform .2s; pointer-events: none; text-align: center; }
+.bulle.visible { opacity: 1; transform: translate(-50%, 0) scale(1); }
+.bulle.obstacle, .bulle.obstacle_loin { background: var(--jaune); } .bulle.urgence, .bulle.echec { background: var(--rouge); color: #fff; }
+.bulle.arrive { background: var(--vert); }
+.bulle::before { content: "🤖 "; }
+.astuce { position: absolute; z-index: 2; left: 50%; bottom: 84px; transform: translateX(-50%); white-space: nowrap;
+  font: 600 10px/1.3 var(--mono); color: var(--hud); text-align: center; opacity: .8; pointer-events: none;
+  background: rgba(5,11,16,.7); padding: 6px 10px; border-radius: 6px; border: 1px dashed rgba(159,232,255,.3); }
+.boutons-ecran { position: absolute; right: 8px; top: 34px; z-index: 4; display: flex; flex-direction: column; gap: 6px; }
+.btn-ecran { min-width: 34px; height: 30px; padding: 0 8px; border-radius: 8px; border: 1px solid rgba(159,232,255,.3);
+  background: rgba(5,15,22,.8); color: var(--hud); font: 700 12px var(--mono); }
+.btn-ecran.sim { color: var(--jaune); border-color: rgba(255,207,63,.45); }
+.urgence-ecran { position: absolute; inset: 0; z-index: 4; display: none; align-items: center; justify-content: center;
+  pointer-events: none; border: 3px solid var(--rouge); border-radius: 10px;
+  background: repeating-linear-gradient(-45deg, rgba(255,71,87,.10) 0 14px, transparent 14px 28px); }
+.urgence-ecran span { padding: 8px 14px; background: var(--rouge); color: #fff; font: 800 15px/1 var(--mono);
+  letter-spacing: 2px; border-radius: 6px; animation: clignote 1s infinite; }
+.urgence-on .urgence-ecran { display: flex; }
+.panneau { position: absolute; z-index: 6; left: 8px; right: 8px; top: 34px; padding: 10px 10px 8px; display: none;
+  max-height: calc(100% - 44px); overflow: auto; -webkit-overflow-scrolling: touch;
+  border-radius: 10px; border: 1px solid rgba(159,232,255,.3); background: rgba(4,12,18,.94);
+  font: 600 10.5px/1.3 var(--mono); color: var(--hud); }
+.panneau.visible { display: block; }
+.panneau h3 { margin: 0 0 6px; font-size: 11px; letter-spacing: 1.5px; color: #fff; display: flex; justify-content: space-between; }
+.panneau table { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; }
+.panneau th { text-align: right; color: var(--hud-doux); font-weight: 600; font-size: 9.5px; letter-spacing: .5px; padding: 2px 3px; }
+.panneau th:first-child, .panneau td:first-child { text-align: left; }
+.panneau td { text-align: right; padding: 4px 3px; border-top: 1px solid var(--hud-ligne); color: #fff; }
+.panneau .note { margin-top: 6px; color: var(--hud-doux); font-size: 10px; }
+.panneau .fermer { pointer-events: auto; background: none; border: 0; color: var(--hud); font: inherit; padding: 0 2px; }
+.pos-robot { position: absolute; z-index: 3; left: 8px; top: 34px; pointer-events: none; padding: 3px 6px; border-radius: 5px;
+  font: 600 9.5px/1.2 var(--mono); color: var(--hud); background: rgba(5,11,16,.7); letter-spacing: .3px; }
+.pos-robot:empty { display: none; }
+.fiche { position: absolute; z-index: 4; left: 50%; transform: translateX(-50%); bottom: 82px; display: none; min-width: 236px;
+  padding: 7px 8px 8px; border-radius: 10px; border: 1px solid rgba(159,232,255,.35); background: rgba(4,12,18,.93);
+  font: 600 10px/1.3 var(--mono); color: var(--hud); box-shadow: 0 6px 18px rgba(0,0,0,.45); }
+.fiche.visible { display: block; }
+.fiche-l1 { display: flex; align-items: baseline; gap: 10px; font-size: 13px; color: #fff; }
+.fiche-l1 b:first-of-type { color: #ff8a96; } .fiche-l1 b:last-of-type { color: #5cf0a0; }
+.fiche-titre { font-size: 9px; letter-spacing: 1.5px; color: var(--hud-doux); }
+.fiche-l2 { margin: 2px 0 6px; color: var(--hud-doux); }
+.fiche-btns { display: flex; gap: 4px; }
+.fiche-btns button { flex: none; width: 32px; height: 30px; border-radius: 7px; border: 1px solid rgba(159,232,255,.3);
+  background: rgba(159,232,255,.07); color: var(--hud); font: 700 11px var(--mono); }
+.fiche-btns button.large { width: auto; flex: 1; padding: 0 8px; }
+.fiche-btns button:active { transform: translateY(1px); }
+@media (orientation: landscape) and (max-height: 560px) {
+  .fiche { left: 34px; right: auto; transform: none; bottom: 64px; min-width: 0; padding: 5px 6px 6px; }
+  .fiche-l2 { display: none; }
+  .fiche-l1 { margin-bottom: 4px; font-size: 12px; }
+  .fiche-btns button { width: 28px; height: 26px; }
+}
+.saisie-xy { display: flex; gap: 8px; }
+.saisie-xy label { flex: 1; min-width: 0; display: flex; align-items: center; gap: 6px; font: 700 13px var(--mono); }
+.panneau .saisie-xy label input { flex: 1; min-width: 0; width: 0; }
+.carre { display: inline-block; width: 9px; height: 9px; border-radius: 2px; margin-right: 5px; vertical-align: 0; }
+.panneau .actions { display: flex; gap: 6px; flex-wrap: wrap; margin: 4px 0 8px; }
+.panneau .act { pointer-events: auto; flex: 1 1 auto; min-height: 32px; padding: 6px 10px; border-radius: 7px;
+  border: 1px solid rgba(159,232,255,.35); background: rgba(159,232,255,.08); color: var(--hud);
+  font: 700 10px/1 var(--mono); letter-spacing: 1px; }
+.panneau .act.principal { border-color: var(--vert); color: var(--vert); background: rgba(57,229,140,.10); }
+.panneau .act.petit { flex: none; min-height: 28px; padding: 4px 9px; }
+.panneau .act:active { transform: translateY(1px); }
+.panneau .lieu-nom { color: var(--orange, #ffb547); }
+.panneau .saisie { display: flex; gap: 6px; margin-top: 8px; }
+.panneau .saisie input { pointer-events: auto; flex: 1; min-width: 0; min-height: 32px; padding: 0 9px; border-radius: 7px;
+  border: 1px solid rgba(159,232,255,.35); background: #02080c; color: #fff; font: 600 16px/1 -apple-system, "Segoe UI", sans-serif; }
+.statut.localisation .pastille { background: var(--jaune); animation: clignote .6s infinite; }
+
+/* ===================== FAÇADE SOUS L'ÉCRAN ===================== */
+.facade { display: flex; align-items: center; justify-content: space-between; padding: 0 8px; }
+.marque { font: 800 12px/1 -apple-system, "Segoe UI", sans-serif; letter-spacing: 3px; color: #8d96a2;
+  text-shadow: 0 1px 0 #000; }
+.marque small { display: block; margin-top: 3px; font: 600 8px/1 var(--mono); letter-spacing: 2px; color: #555e69; }
+.leds { display: flex; gap: 12px; }
+.led { display: flex; flex-direction: column; align-items: center; gap: 4px; font: 700 7.5px/1 var(--mono); letter-spacing: 1px; color: #5d6670; }
+.led i { width: 7px; height: 7px; border-radius: 50%; background: #2a2f36; box-shadow: inset 0 1px 1px rgba(0,0,0,.8); }
+.led.on i { background: var(--vert); box-shadow: 0 0 8px var(--vert); }
+.led.att i { background: var(--jaune); box-shadow: 0 0 8px var(--jaune); }
+.led.err i { background: var(--rouge); box-shadow: 0 0 8px var(--rouge); }
+.hp { width: 46px; height: 22px; display: grid; grid-template-columns: repeat(7, 1fr); gap: 3px; align-items: center; }
+.hp i { width: 3.5px; height: 3.5px; border-radius: 50%; background: #07080a; box-shadow: 0 1px 0 rgba(255,255,255,.08); justify-self: center; }
+.hp.parle i { animation: hp .25s infinite alternate; }
+.hp.parle i:nth-child(odd) { animation-delay: .12s; }
+
+/* ===================== COMMANDES ===================== */
+.commandes { display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: 4px; padding: 0 2px; }
+.zone-stick { display: flex; justify-content: center; }
+.stick { position: relative; width: 132px; height: 132px; border-radius: 50%; touch-action: none;
+  background: radial-gradient(circle at 50% 45%, #0f1114 0%, #1a1d22 58%, #2a2f37 61%, #15181c 72%);
+  box-shadow: inset 0 3px 8px rgba(0,0,0,.85), 0 1px 0 rgba(255,255,255,.08), 0 0 0 1px #000; }
+.stick::after { content: "MANUEL"; position: absolute; left: 50%; bottom: -15px; transform: translateX(-50%);
+  font: 700 8px/1 var(--mono); letter-spacing: 1.5px; color: #59626d; }
+.chapeau { position: absolute; left: 50%; top: 50%; width: 64px; height: 64px; margin: -32px 0 0 -32px; border-radius: 50%;
+  background:
+    radial-gradient(circle at 50% 50%, transparent 0 14px, rgba(0,0,0,.25) 15px 16px, transparent 17px),
+    repeating-conic-gradient(from 0deg, #3b424c 0 6deg, #2d333b 6deg 12deg),
+    #333a43;
+  box-shadow: inset 0 2px 2px rgba(255,255,255,.15), inset 0 -3px 6px rgba(0,0,0,.5), 0 6px 12px rgba(0,0,0,.7), 0 0 0 1px #0b0c0e;
+  transition: transform .14s cubic-bezier(.3,1.6,.6,1); }
+.chapeau::after { content: ""; position: absolute; inset: 18px; border-radius: 50%;
+  background: radial-gradient(circle at 40% 35%, #4a525d, #2a3038); box-shadow: inset 0 1px 2px rgba(0,0,0,.6); }
+.stick.actif .chapeau { transition: none; }
+
+.zone-arret { display: flex; flex-direction: column; align-items: center; gap: 6px; }
+.arret { position: relative; width: 88px; height: 88px; border-radius: 50%; border: 0; padding: 0; cursor: pointer;
+  background: radial-gradient(circle, #f5c518 0 60%, #c99a00 61% 66%, #1b1d21 67%);
+  box-shadow: 0 0 0 1px #000, 0 4px 10px rgba(0,0,0,.7); }
+.arret .champignon { position: absolute; inset: 15px; border-radius: 50%;
+  background: radial-gradient(circle at 38% 30%, #ff8a8f 0%, #f0303f 35%, #b3101d 75%, #7a0a13 100%);
+  box-shadow: 0 6px 0 #6d0811, 0 9px 12px rgba(0,0,0,.6), inset 0 -3px 6px rgba(0,0,0,.35);
+  transition: transform .08s, box-shadow .08s; display: flex; align-items: center; justify-content: center;
+  color: rgba(255,255,255,.92); font: 900 10px/1.05 var(--mono); letter-spacing: .5px; text-align: center; }
+.arret:active .champignon, .arret.enfonce .champignon { transform: translateY(5px);
+  box-shadow: 0 1px 0 #6d0811, 0 2px 4px rgba(0,0,0,.6), inset 0 -3px 6px rgba(0,0,0,.35); }
+.arret.enfonce .champignon { filter: brightness(.85); }
+.etiquette { font: 700 8px/1 var(--mono); letter-spacing: 1.5px; color: #59626d; text-align: center; }
+
+.zone-boutons { display: flex; justify-content: center; }
+.losange { position: relative; width: 140px; height: 140px; }
+.bouton { position: absolute; width: 50px; height: 50px; border-radius: 50%; border: 0; padding: 0;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  font: 900 15px/1 -apple-system, "Segoe UI", sans-serif; color: rgba(255,255,255,.95);
+  box-shadow: 0 4px 0 rgba(0,0,0,.55), 0 6px 10px rgba(0,0,0,.55), inset 0 2px 2px rgba(255,255,255,.35), inset 0 -3px 5px rgba(0,0,0,.3);
+  transition: transform .06s, box-shadow .06s; }
+.bouton small { font: 700 7.5px/1 var(--mono); letter-spacing: .8px; margin-top: 3px; opacity: .9; }
+.bouton:active, .bouton.presse { transform: translateY(3px);
+  box-shadow: 0 1px 0 rgba(0,0,0,.55), 0 2px 4px rgba(0,0,0,.55), inset 0 2px 2px rgba(255,255,255,.25), inset 0 -2px 4px rgba(0,0,0,.3); }
+.bouton[disabled] { filter: grayscale(.7) brightness(.6); }
+.b-a { left: 45px; bottom: 0; background: radial-gradient(circle at 40% 30%, #6ff5ad, #1fbf68 60%, #138a49); }
+.b-b { right: 0; top: 45px; background: radial-gradient(circle at 40% 30%, #ff8f9a, #e23b4c 60%, #a51f2d); }
+.b-x { left: 0; top: 45px; background: radial-gradient(circle at 40% 30%, #8fcbff, #2f8ef0 60%, #1b5fae); }
+.b-y { left: 45px; top: 0; background: radial-gradient(circle at 40% 30%, #ffe48a, #f2b90d 60%, #b88600); color: #3a2a00; }
+.b-a.pret { animation: pret 1.1s infinite; }
+
+.barre-menu { display: flex; justify-content: center; gap: 6px; padding-top: 4px; }
+.barre-menu .pilule { letter-spacing: 1.1px; }
+.pilule { display: flex; flex-direction: column; align-items: center; gap: 5px; background: none; border: 0; padding: 0;
+  font: 700 8px/1 var(--mono); letter-spacing: 1.5px; color: #6d7783; }
+.pilule i { display: block; width: 46px; height: 13px; border-radius: 8px;
+  background: linear-gradient(180deg, #3a414b, #23272d); box-shadow: 0 2px 0 #000, inset 0 1px 0 rgba(255,255,255,.12); }
+.pilule:active i, .pilule.presse i { transform: translateY(2px); box-shadow: 0 0 0 #000, inset 0 1px 0 rgba(255,255,255,.06); }
+
+/* ===================== DÉMARRAGE ===================== */
+.demarrage { position: fixed; inset: 0; z-index: 50; display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 18px; background: radial-gradient(80% 60% at 50% 40%, #0f2430, #04080b 70%); color: var(--hud); font-family: var(--mono); text-align: center; padding: 24px; }
+.demarrage .logo { font: 900 30px/1 -apple-system, "Segoe UI", sans-serif; letter-spacing: 6px; color: #fff; }
+.demarrage .logo span { color: var(--hud); }
+.demarrage p { margin: 0; font-size: 11px; letter-spacing: 2px; color: var(--hud-doux); line-height: 1.6; }
+.demarrage button { margin-top: 8px; padding: 14px 26px; border-radius: 30px; border: 1px solid var(--hud);
+  background: rgba(159,232,255,.08); color: var(--hud); font: 700 13px var(--mono); letter-spacing: 3px; animation: pret 1.6s infinite; }
+.demarrage.cache { opacity: 0; pointer-events: none; transition: opacity .5s; }
+
+@keyframes clignote { 50% { opacity: .25; } }
+@keyframes hp { from { background: #07080a; } to { background: #3d8aa3; } }
+@keyframes pret { 0%,100% { box-shadow: 0 4px 0 rgba(0,0,0,.55), 0 0 0 0 rgba(57,229,140,.55); } 50% { box-shadow: 0 4px 0 rgba(0,0,0,.55), 0 0 0 9px rgba(57,229,140,0); } }
+
+/* ===================== PETITS ÉCRANS ===================== */
+@media (max-height: 700px) {
+  .console { padding-top: 18px; gap: 7px; }
+  .stick { width: 112px; height: 112px; } .chapeau { width: 56px; height: 56px; margin: -28px 0 0 -28px; }
+  .losange { width: 124px; height: 124px; } .bouton { width: 44px; height: 44px; }
+  .b-a, .b-y { left: 40px; } .b-b, .b-x { top: 40px; }
+  .arret { width: 76px; height: 76px; } .arret .champignon { inset: 13px; }
+}
+@media (max-width: 370px) {
+  .stick { width: 108px; height: 108px; } .losange { width: 118px; height: 118px; }
+  .bouton { width: 42px; height: 42px; } .b-a, .b-y { left: 38px; } .b-b, .b-x { top: 38px; }
+  .arret { width: 70px; height: 70px; } .arret .champignon { inset: 12px; font-size: 8.5px; }
+}
+/* ===================== PAYSAGE : console horizontale ===================== */
+@media (orientation: landscape) and (max-height: 560px) {
+  .console { max-width: 1000px; max-height: 100%; grid-template-columns: 168px minmax(0, 1fr) 168px;
+    grid-template-rows: minmax(0, 1fr) auto; grid-template-areas: "gauche ecran droite" "gauche facade droite";
+    padding: 16px 14px 12px; border-radius: 46px; gap: 6px 10px; }
+  .module-ecran { grid-area: ecran; } .facade { grid-area: facade; }
+  .commandes { display: contents; }
+  .zone-stick { grid-area: gauche; align-self: center; margin-top: -30px; }
+  .barre-menu { grid-area: gauche; align-self: end; display: grid; grid-template-columns: 1fr 1fr; gap: 8px 6px; padding-bottom: 4px; }
+  #bRaz { grid-column: 1 / -1; justify-self: center; }
+  .zone-stick { margin-top: -60px !important; }
+  .zone-arret { grid-area: droite; align-self: start; margin-top: 14px; }
+  .zone-boutons { grid-area: droite; align-self: end; margin-bottom: 4px; }
+  .arret { width: 70px; height: 70px; } .arret .champignon { inset: 12px; font-size: 8.5px; }
+  .zone-arret .etiquette { display: none; }
+  .gachette.g { left: 62px; } .gachette.d { right: 62px; }
+  .stick { width: 124px; height: 124px; }
+  .losange { width: 128px; height: 128px; } .bouton { width: 46px; height: 46px; }
+  .b-a, .b-y { left: 41px; } .b-b, .b-x { top: 41px; }
+}
+
+/* ===================== MODE D'EMPLOI (tiroir déroulant) ===================== */
+.btn-guide { display: inline-flex; align-items: center; gap: 6px; padding: 4px 9px 4px 5px; border-radius: 999px;
+  border: 1px solid rgba(159,232,255,.35); background: linear-gradient(180deg, rgba(159,232,255,.14), rgba(159,232,255,.04));
+  color: var(--hud); font: 700 9.5px/1 var(--mono); letter-spacing: 1.5px; cursor: pointer; }
+.btn-guide b { display: inline-flex; align-items: center; justify-content: center; width: 15px; height: 15px; border-radius: 50%;
+  background: var(--hud); color: #04121a; font: 900 10px/1 -apple-system, "Segoe UI", sans-serif; }
+.btn-guide:active { transform: scale(.96); }
+.bandeau-droite { display: inline-flex; align-items: center; gap: 10px; }
+.guide { position: fixed; inset: 0; z-index: 60; pointer-events: none; }
+.guide-fond { position: absolute; inset: 0; background: rgba(2,6,9,.55); opacity: 0; transition: opacity .35s ease;
+  -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px); }
+.guide-feuille { position: absolute; left: 50%; bottom: 0; width: min(560px, 100%); max-height: 88%;
+  transform: translate(-50%, 104%); transition: transform .55s cubic-bezier(.2, .9, .25, 1.05);
+  display: flex; flex-direction: column; border-radius: 26px 26px 0 0; overflow: hidden;
+  background: linear-gradient(180deg, #121a22 0%, #0b1117 100%); color: var(--texte);
+  box-shadow: 0 -20px 60px rgba(0,0,0,.6), inset 0 1px 0 rgba(255,255,255,.08), 0 0 0 1px rgba(159,232,255,.12);
+  padding-bottom: env(safe-area-inset-bottom); }
+.guide.ouvert { pointer-events: auto; }
+.guide.ouvert .guide-fond { opacity: 1; }
+.guide.ouvert .guide-feuille { transform: translate(-50%, 0); }
+.poignee { width: 42px; height: 5px; border-radius: 3px; background: rgba(255,255,255,.18); margin: 9px auto 0; flex: none; }
+.guide-tete { display: flex; align-items: center; gap: 12px; padding: 12px 18px 12px; flex: none;
+  border-bottom: 1px solid rgba(159,232,255,.10); }
+.guide-tete .pastille-logo { width: 38px; height: 38px; border-radius: 11px; flex: none; display: flex; align-items: center; justify-content: center;
+  background: radial-gradient(circle at 35% 30%, #2b6c86, #0d2a36); box-shadow: inset 0 1px 0 rgba(255,255,255,.2), 0 0 0 1px rgba(159,232,255,.25);
+  font: 900 13px/1 var(--mono); color: #fff; letter-spacing: .5px; }
+.guide-tete h2 { margin: 0; font: 800 18px/1.15 -apple-system, "SF Pro Display", "Segoe UI", sans-serif; letter-spacing: .2px; }
+.guide-tete p { margin: 3px 0 0; font: 600 10px/1.2 var(--mono); letter-spacing: 1.5px; color: var(--hud-doux); }
+.guide-tete .fermer-guide { margin-left: auto; width: 34px; height: 34px; border-radius: 50%; border: 0; flex: none;
+  background: rgba(255,255,255,.08); color: #cfd8e0; font-size: 16px; }
+.guide-corps { overflow-y: auto; -webkit-overflow-scrolling: touch; padding: 10px 14px 22px; overscroll-behavior: contain; }
+.section { margin-top: 9px; border-radius: 16px; background: rgba(255,255,255,.035); border: 1px solid rgba(159,232,255,.09);
+  opacity: 0; transform: translateY(14px); transition: opacity .45s ease, transform .45s ease, border-color .3s, background .3s; }
+.guide.ouvert .section { opacity: 1; transform: none; }
+.section.deplie { background: rgba(159,232,255,.055); border-color: rgba(159,232,255,.22); }
+.section > button { width: 100%; display: flex; align-items: center; gap: 12px; padding: 13px 14px; border: 0; background: none;
+  color: var(--texte); text-align: left; font: 700 14.5px/1.2 -apple-system, "Segoe UI", sans-serif; cursor: pointer; }
+.section .ico { width: 32px; height: 32px; border-radius: 9px; flex: none; display: flex; align-items: center; justify-content: center;
+  color: var(--hud); background: rgba(159,232,255,.10); box-shadow: inset 0 0 0 1px rgba(159,232,255,.18); }
+.section .sous { display: block; margin-top: 2px; font: 600 10.5px/1.2 -apple-system, "Segoe UI", sans-serif; color: var(--texte-doux); }
+.section .ico svg { width: 18px; height: 18px; }
+.section .chevron svg { width: 16px; height: 16px; display: block; }
+.section .chevron { margin-left: auto; color: var(--hud-doux); transition: transform .35s ease; font-size: 12px; }
+.section.deplie .chevron { transform: rotate(180deg); color: var(--hud); }
+.contenu { display: grid; grid-template-rows: 0fr; transition: grid-template-rows .45s cubic-bezier(.2,.8,.2,1); }
+.section.deplie .contenu { grid-template-rows: 1fr; }
+.contenu > div { overflow: hidden; }
+.contenu .int { padding: 0 16px 15px 56px; font: 400 13.5px/1.5 -apple-system, "Segoe UI", sans-serif; color: #c8d2dc; }
+.int p { margin: 0 0 8px; } .int b { color: #fff; }
+.etapes { counter-reset: e; list-style: none; margin: 4px 0 8px; padding: 0; }
+.etapes li { counter-increment: e; position: relative; padding: 0 0 9px 32px; }
+.etapes li::before { content: counter(e); position: absolute; left: 0; top: 0; width: 21px; height: 21px; border-radius: 50%;
+  background: var(--hud); color: #04121a; font: 800 11px/21px -apple-system, "Segoe UI", sans-serif; text-align: center; }
+.touches { display: grid; grid-template-columns: 1fr; gap: 7px; margin: 4px 0 6px; }
+.touche { display: grid; grid-template-columns: 40px 1fr; align-items: center; gap: 10px; }
+.mini { width: 34px; height: 34px; border-radius: 50%; display: flex; align-items: center; justify-content: center;
+  font: 900 13px/1 -apple-system, "Segoe UI", sans-serif; color: #fff; box-shadow: 0 2px 0 rgba(0,0,0,.5), inset 0 1px 1px rgba(255,255,255,.35); }
+.mini.pil { border-radius: 8px; height: 14px; width: 34px; background: linear-gradient(180deg, #3a414b, #23272d); }
+.mini.gach { border-radius: 9px 9px 3px 3px; height: 18px; width: 34px; background: linear-gradient(180deg, #3a414b, #22262c); font-size: 9px; color: #aab3be; }
+.mini.stk { background: radial-gradient(circle, #3b424c 0 40%, #15181c 42%); }
+.mini.ecr { border-radius: 7px; background: #071219; border: 1px solid rgba(159,232,255,.4); color: var(--hud); font-size: 12px; }
+.legende { display: grid; grid-template-columns: 1fr 1fr; gap: 6px 12px; margin: 6px 0 8px; font-size: 12.5px; }
+.legende span { display: flex; align-items: center; gap: 8px; }
+.legende i { width: 14px; height: 14px; border-radius: 4px; flex: none; }
+.encart { margin: 8px 0 2px; padding: 9px 11px; border-radius: 10px; font-size: 12.5px;
+  background: rgba(255,207,63,.08); border: 1px solid rgba(255,207,63,.25); color: #f3e3b0; }
+.citation { display: inline-block; margin: 2px 4px 2px 0; padding: 3px 9px; border-radius: 999px; background: rgba(255,255,255,.92);
+  color: #0a1218; font: 700 11.5px/1.3 -apple-system, "Segoe UI", sans-serif; }
+.reglages { display: grid; gap: 10px; margin-top: 4px; }
+.reglages label { display: grid; gap: 5px; font: 700 10px/1 var(--mono); letter-spacing: 1.2px; color: var(--hud-doux); }
+.reglages select, .reglages input[type=range] { width: 100%; }
+.reglages select { padding: 9px 10px; border-radius: 10px; border: 1px solid rgba(159,232,255,.25); background: #0a141b; color: #fff;
+  font: 600 13px -apple-system, "Segoe UI", sans-serif; }
+.reglages input[type=range] { accent-color: var(--hud); }
+.rangee { display: flex; gap: 8px; }
+.btn-plein { flex: 1; padding: 11px; border-radius: 12px; border: 0; font: 700 13px -apple-system, "Segoe UI", sans-serif;
+  background: var(--hud); color: #04121a; }
+.btn-plein.second { background: rgba(255,255,255,.08); color: #e6edf3; }
+.btn-plein:active { transform: scale(.98); }
+.astuce-voix { font-size: 12px; color: var(--texte-doux); margin-top: 2px; }
+@media (orientation: landscape) and (max-height: 560px) {
+  .guide-feuille { max-height: 94%; width: min(640px, 92%); }
+}
+@media (prefers-reduced-motion: reduce) { .guide-feuille, .section, .contenu, .guide-fond { transition: none; } }
+</style>
+</head>
+<body>
+
+<div class="demarrage" id="demarrage">
+  <div class="logo">TB3<span>·</span>GC</div>
+  <p>TURTLEBOT3 BURGER<br>STATION DE CONTRÔLE AU SOL</p>
+  <button id="allumer">▶ DÉMARRER</button>
+  <p style="font-size:9.5px">Active le son du téléphone pour entendre le robot parler.</p>
+  <button class="btn-guide" id="guideAccueil" style="animation:none;margin-top:0"><b>?</b>MODE D'EMPLOI</button>
+</div>
+
+<div class="console" id="console">
+  <i class="vis hg"></i><i class="vis hd"></i><i class="vis bg"></i><i class="vis bd"></i>
+  <button class="gachette g" id="zoomMoins" aria-label="Zoom arrière">L · −</button>
+  <button class="gachette d" id="zoomPlus" aria-label="Zoom avant">+ · R</button>
+
+  <!-- ÉCRAN -->
+  <div class="module-ecran">
+    <div class="bandeau-ecran"><span><i class="led-alim" id="ledAlim"></i>TB3 · GROUND CONTROL</span><span class="bandeau-droite"><button class="btn-guide" id="ouvrirGuide" aria-label="Mode d'emploi"><b>?</b>GUIDE</button><span id="horloge">--:--</span></span></div>
+    <div class="ecran" id="ecran">
+      <canvas id="canvas"></canvas>
+      <div class="hud-haut">
+        <span class="signal ko" id="signal"><i></i><i></i><i></i></span>
+        <span class="puce" id="puceMode">—</span>
+        <span class="puce algo" id="puceAlgo">A*</span>
+        <span class="puce vit" id="puceVitesse"><span class="crans" id="crans"><b></b><b></b><b></b></span><span id="txtVitesse">–</span></span>
+        <span class="puce" id="puceVue">CARTE</span>
+        <span class="espace"></span>
+        <span class="batt" id="batt"><span class="batt-corps"><span class="batt-niveau" id="battNiveau" style="width:0"></span></span><span id="battTexte">--%</span></span>
+      </div>
+      <div class="boutons-ecran">
+        <button class="btn-ecran" id="recentrer" title="Recentrer sur le robot">◎</button>
+        <button class="btn-ecran" id="boutonXY" title="Choisir un point par ses coordonnées">XY</button>
+        <button class="btn-ecran sim" id="simObstacle" style="display:none" title="Poser un obstacle surprise devant le robot">+▣</button>
+        <button class="btn-ecran sim" id="simRetirer" style="display:none" title="Retirer les obstacles surprise">−▣</button>
+      </div>
+      <div class="pos-robot" id="posRobot"></div>
+      <div class="fiche" id="fiche">
+        <div class="fiche-l1"><span class="fiche-titre">CIBLE</span><b id="fX">X —</b><b id="fY">Y —</b></div>
+        <div class="fiche-l2" id="fInfo"></div>
+        <div class="fiche-btns">
+          <button data-n="-x" aria-label="5 cm vers la gauche">◀</button><button data-n="+y" aria-label="5 cm vers le haut">▲</button><button data-n="-y" aria-label="5 cm vers le bas">▼</button><button data-n="+x" aria-label="5 cm vers la droite">▶</button>
+          <button data-n="xy" class="large">X , Y…</button><button data-n="effacer" aria-label="Effacer la cible">✕</button>
+        </div>
+      </div>
+      <div class="astuce" id="astuce">TOUCHE LA CARTE ▸ DESTINATION ▸ A = GO</div>
+      <div class="bulle" id="bulle"></div>
+      <div class="panneau" id="panneau"></div>
+      <div class="urgence-ecran"><span>ARRÊT D'URGENCE</span></div>
+      <div class="hud-bas">
+        <div class="statut attente" id="statut"><i class="pastille"></i><span id="statutTexte">CONNEXION…</span></div>
+        <div class="mesures">
+          <div class="mesure"><b id="mV">0.00</b><span>M/S</span></div>
+          <div class="mesure"><b id="mObs">—</b><span>OBSTACLE</span></div>
+          <div class="mesure"><b id="mReste">—</b><span>RESTANT</span></div>
+          <div class="mesure"><b id="mCalc">—</b><span>CALCUL</span></div>
+        </div>
+      </div>
+      <div class="reflet"></div>
+    </div>
+  </div>
+
+  <!-- FAÇADE -->
+  <div class="facade">
+    <div class="hp" id="hp"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
+    <div class="marque">TURTLEBOT3<small>PATH PLANNER · ESIEE-IT</small></div>
+    <div class="leds">
+      <div class="led" id="ledLien"><i></i>LIEN</div>
+      <div class="led" id="ledLidar"><i></i>LIDAR</div>
+      <div class="led" id="ledNav"><i></i>NAV</div>
+    </div>
+  </div>
+
+  <!-- COMMANDES -->
+  <div class="commandes">
+    <div class="zone-stick">
+      <div class="stick" id="stick"><div class="chapeau" id="chapeau"></div></div>
+    </div>
+    <div class="zone-arret">
+      <button class="arret" data-role="arret"><span class="champignon">ARRÊT<br>URGENCE</span></button>
+      <div class="etiquette">EMERGENCY</div>
+    </div>
+    <div class="zone-boutons">
+      <div class="losange">
+        <button class="bouton b-y" id="bY">Y<small>VUE</small></button>
+        <button class="bouton b-x" id="bX">X<small>BASE</small></button>
+        <button class="bouton b-b" id="bB">B<small>ANNUL</small></button>
+        <button class="bouton b-a" id="bA">A<small>GO</small></button>
+      </div>
+    </div>
+  </div>
+  <div class="barre-menu">
+    <button class="pilule" id="bVitesse"><i></i><span>VITESSE <span class="crans" id="cransMenu"><b></b><b></b><b></b></span></span></button>
+    <button class="pilule" id="bAlgo"><i></i>ALGO</button>
+    <button class="pilule" id="bCmp"><i></i>COMPARER</button>
+    <button class="pilule" id="bLieux"><i></i>LIEUX</button>
+    <button class="pilule" id="bRaz"><i></i>CARTE RAZ</button>
+  </div>
+</div>
+
+<!-- ===================== MODE D'EMPLOI ===================== -->
+<div class="guide" id="guide" aria-hidden="true">
+  <div class="guide-fond" data-fermer-guide></div>
+  <div class="guide-feuille" role="dialog" aria-label="Mode d'emploi de la manette">
+    <div class="poignee"></div>
+    <div class="guide-tete">
+      <div class="pastille-logo">TB3</div>
+      <div><h2>Mode d'emploi</h2><p>STATION DE CONTRÔLE · TURTLEBOT3</p></div>
+      <button class="fermer-guide" data-fermer-guide aria-label="Fermer">✕</button>
+    </div>
+    <div class="guide-corps" id="guideCorps">
+
+      <div class="section deplie">
+        <button><span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v3"/><path d="M18.4 6.6a8 8 0 1 1-12.8 0"/></svg></span><span>Démarrer en 30 secondes<span class="sous">Ce qu'il faut lancer avant</span></span><span class="chevron"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg></span></button>
+        <div class="contenu"><div><div class="int">
+          <ol class="etapes">
+            <li>Robot allumé. Sur la Pi, terminal 1 : <b>robot.launch.py</b> (bringup).</li>
+            <li>Terminal 2 : <b>station_mobile.py</b>. La station affiche son adresse.</li>
+            <li>Sur le téléphone : ouvre <b>http://172.20.10.2:8080</b>, puis touche <b>DÉMARRER</b>.</li>
+            <li>Vérifie les 3 LEDs sous l'écran : <b>LIEN</b> et <b>LIDAR</b> doivent être vertes.</li>
+          </ol>
+          <div class="encart">Sur iPhone, coupe le mode silencieux (bouton sur le côté) pour entendre le robot.</div>
+        </div></div></div>
+      </div>
+
+      <div class="section">
+        <button><span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1.2" fill="currentColor"/></svg></span><span>Envoyer le robot quelque part<span class="sous">Le cœur du projet : il y va tout seul</span></span><span class="chevron"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg></span></button>
+        <div class="contenu"><div><div class="int">
+          <ol class="etapes">
+            <li><b>Touche la carte</b> à l'endroit voulu : une cible blanche apparaît.</li>
+            <li>Choisis l'algorithme avec <b>ALGO</b> (A*, Dijkstra ou RRT) si tu veux.</li>
+            <li>Appuie sur <b>A · GO</b>. Le robot calcule son chemin (ligne de couleur), puis le suit seul.</li>
+            <li>À l'arrivée, il dit « Arrivé ! » et affiche le <b>bilan de mission</b>.</li>
+          </ol>
+          <p><b>X · BASE</b> le ramène à son point de départ (H). <b>B · ANNUL</b> arrête la mission.</p>
+          <p>Le robot cartographie la pièce en roulant. Les zones noires sont inconnues : il les suppose libres et recalcule s'il y découvre un mur.</p>
+        </div></div></div>
+      </div>
+
+      <div class="section">
+        <button><span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 21s-6.5-5.6-6.5-11a6.5 6.5 0 0 1 13 0c0 5.4-6.5 11-6.5 11z"/><circle cx="12" cy="10" r="2.4"/></svg></span><span>Carte enregistrée et lieux<span class="sous">La pièce n'est cartographiée qu'une fois</span></span><span class="chevron"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg></span></button>
+        <div class="contenu"><div><div class="int">
+          <ol>
+            <li>Fais le tour de la pièce une fois (au joystick ou avec des missions).</li>
+            <li>Touche <b>LIEUX</b>, puis <b>SOUS UN NOM…</b> (ex. « Salle 330 ») la première fois, ensuite <b>ENREGISTRER</b>. Elle est aussi enregistrée seule quand on arrête la station (Ctrl+C).</li>
+            <li>Pour nommer un endroit : amène le robot dessus, tape un nom (« Bureau », « Porte »), puis <b>+ MÉMORISER ICI</b>. Il apparaît en losange orange sur la carte.</li>
+            <li>Pour y retourner : <b>LIEUX</b>, puis <b>ALLER</b> à côté du nom.</li>
+          </ol>
+          <p><b>Au démarrage suivant</b>, la carte, la base H et les lieux reviennent seuls. <b>Le robot peut être posé n'importe où</b> dans la pièce : il compare son LiDAR à la carte, à toutes les positions et orientations possibles, puis <b>tourne seul d'un quart de tour sur place</b> pour confirmer avec une deuxième vue, et dit « Je sais où je suis ! » (5 à 10 s en général). Pendant ce temps, l'écran affiche « Où suis-je ? » et les missions attendent.</p>
+          <p>S'il hésite encore après un tour complet (pièce symétrique, beaucoup de monde autour), déplace-le un peu au joystick : il réessaie chaque seconde. Si on l'a déplacé à la main pendant qu'il tournait, touche <b>OÙ SUIS-JE ?</b>.</p>
+          <p><b>EXPLORER SEUL</b> (dans LIEUX) : le robot découvre la pièce sans aide. Il va de « frontière » en « frontière » (le bord entre ce qu'il connaît et l'inconnu) jusqu'à ce qu'il n'en reste plus, puis dit « Exploration terminée » et enregistre la carte. B ou le joystick l'arrêtent.</p>
+          <p>Nouvelle salle ? <b>CARTE RAZ</b> (maintenir 1 s) repart d'une carte vide, puis <b>EXPLORER SEUL</b>, puis <b>SOUS UN NOM…</b>.</p>
+          <p><b>MES CARTES…</b> : la liste des cartes enregistrées (date, surface, lieux). <b>CHARGER</b> remplace la carte en cours ; le robot se retrouve ensuite seul dessus. La dernière carte utilisée revient seule au démarrage.</p>
+          <p><b>PLAN EN IMAGE</b> : télécharge (ou partage, sur iPhone) un plan PNG propre, fond blanc, repère gradué en mètres, échelle, légende, base H et lieux. Idéal pour le rapport.</p>
+          <p>Avec l'option <b>--slam</b>, la carte est faite par <b>slam_toolbox</b> (fermeture de boucle : murs nets même après plusieurs tours). Le panneau LIEUX indique « slam_toolbox actif ».</p>
+        </div></div></div>
+      </div>
+
+      <div class="section">
+        <button><span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2.5" y="7" width="19" height="11" rx="5.5"/><path d="M7.5 10.5v4"/><path d="M5.5 12.5h4"/><circle cx="15.5" cy="11.5" r=".9" fill="currentColor"/><circle cx="17.8" cy="13.8" r=".9" fill="currentColor"/></svg></span><span>Toutes les commandes<span class="sous">Boutons, stick, gâchettes</span></span><span class="chevron"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg></span></button>
+        <div class="contenu"><div><div class="int">
+          <div class="touches">
+            <div class="touche"><span class="mini" style="background:radial-gradient(circle at 40% 30%,#6ff5ad,#1fbf68 60%,#138a49)">A</span><span><b>GO</b> : lance la mission vers la cible.</span></div>
+            <div class="touche"><span class="mini" style="background:radial-gradient(circle at 40% 30%,#ff8f9a,#e23b4c 60%,#a51f2d)">B</span><span><b>ANNUL</b> : arrête la mission. Libère aussi l'arrêt d'urgence.</span></div>
+            <div class="touche"><span class="mini" style="background:radial-gradient(circle at 40% 30%,#8fcbff,#2f8ef0 60%,#1b5fae)">X</span><span><b>BASE</b> : retour automatique au point de départ.</span></div>
+            <div class="touche"><span class="mini" style="background:radial-gradient(circle at 40% 30%,#ffe48a,#f2b90d 60%,#b88600);color:#3a2a00">Y</span><span><b>VUE</b> : CARTE (fond sombre) → PLAN (fond blanc, comme un plan papier) → RADAR LiDAR.</span></div>
+            <div class="touche"><span class="mini" style="background:radial-gradient(circle at 38% 30%,#ff8a8f,#f0303f 35%,#b3101d 75%);box-shadow:0 0 0 3px #f5c518">!</span><span><b>ARRÊT D'URGENCE</b> : stoppe tout, tout de suite. Appuie à nouveau pour libérer.</span></div>
+            <div class="touche"><span class="mini stk"></span><span><b>Stick MANUEL</b> : conduite à la main, en secours. Il annule la mission en cours.</span></div>
+            <div class="touche"><span class="mini gach">L R</span><span><b>Gâchettes</b> : zoom arrière (L) et avant (R). Glisse sur l'écran pour déplacer la vue.</span></div>
+            <div class="touche"><span class="mini pil"></span><span><b>VITESSE</b> : 1 lent · 2 normal · 3 rapide, même pendant une mission.</span></div>
+            <div class="touche"><span class="mini pil"></span><span><b>ALGO</b> : A* → Dijkstra → RRT.</span></div>
+            <div class="touche"><span class="mini pil"></span><span><b>COMPARER</b> : les 3 algorithmes sur la vraie carte, côte à côte.</span></div>
+            <div class="touche"><span class="mini pil"></span><span><b>LIEUX</b> : enregistrer la carte, mémoriser un endroit, y aller.</span></div>
+            <div class="touche"><span class="mini pil"></span><span><b>CARTE RAZ</b> (maintenir 1 s) : efface la carte ; ici devient la base.</span></div>
+            <div class="touche"><span class="mini ecr">◎</span><span><b>Recentrer</b> la vue sur le robot.</span></div>
+          </div>
+        </div></div></div>
+      </div>
+
+      <div class="section">
+        <button><span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="13" rx="2"/><path d="M8 21h8"/><path d="M12 17v4"/><path d="M6.5 13l3.2-3.5 2.8 2.3L17.5 7"/></svg></span><span>Lire l'écran<span class="sous">Couleurs, chiffres et voyants</span></span><span class="chevron"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg></span></button>
+        <div class="contenu"><div><div class="int">
+          <div class="legende">
+            <span><i style="background:#96ebff"></i>Mur cartographié</span>
+            <span><i style="background:#0e2632;border:1px solid #1d4556"></i>Zone libre connue</span>
+            <span><i style="background:#050b10;border:1px solid #26323b"></i>Zone inconnue</span>
+            <span><i style="background:#ff5a64"></i>Points du LiDAR</span>
+            <span><i style="background:#39e58c"></i>Chemin prévu (A*)</span>
+            <span><i style="background:#49a8ff"></i>Trajet parcouru</span>
+          </div>
+          <p><b>Le repère</b> : la carte est un repère orthonormé gradué en <b>mètres</b>. L'origine (0 ; 0) est la base <b>H</b> (là où le robot a démarré). L'axe <b style="color:#ff8a96">X</b> (rouge) va vers la droite, l'axe <b style="color:#5cf0a0">Y</b> (vert) vers le haut. Les valeurs sont écrites en bas (X) et à gauche (Y), quel que soit le zoom.</p>
+          <p>En haut à gauche : la position du robot (<b>X, Y</b> et son cap en degrés).</p>
+          <p><b>Choisir un point précis</b> : touche la carte, la cible se cale sur 5 cm près et une fiche affiche ses coordonnées, sa distance et sa direction. Les flèches ◀ ▲ ▼ ▶ la décalent de 5 cm. Le bouton <b>XY</b> (ou « X , Y… » sur la fiche) permet de <b>taper</b> les coordonnées, puis PLACER LA CIBLE ou PLACER ET GO.</p>
+          <p>En haut : mode (<b>ROBOT RÉEL</b> ou <b>SIMULATION</b>), algorithme, niveau de vitesse, batterie <b>réelle</b> en % et en volts.</p>
+          <p>En bas : vitesse mesurée, distance de l'obstacle devant, distance restante, temps de calcul du chemin.</p>
+          <p>LEDs : <b>LIEN</b> (téléphone ↔ robot), <b>LIDAR</b> (capteur actif), <b>NAV</b> (vert en route, orange en calcul ou à l'arrêt devant un obstacle, rouge bloqué).</p>
+        </div></div></div>
+      </div>
+
+      <div class="section">
+        <button><span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l9.5 16.5h-19z"/><path d="M12 10v4.5"/><circle cx="12" cy="17.2" r=".8" fill="currentColor"/></svg></span><span>Obstacles et paroles du robot<span class="sous">Ce qu'il fait tout seul</span></span><span class="chevron"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg></span></button>
+        <div class="contenu"><div><div class="int">
+          <p>Un obstacle surgit sur son chemin (pied, carton, personne) :</p>
+          <ol class="etapes">
+            <li>Il s'arrête et prévient : <span class="citation">Oh ! Attention, obstacle !</span></li>
+            <li>Si l'obstacle s'en va, il repart : <span class="citation">Je repars.</span></li>
+            <li>S'il reste plus de 2,5 s, il recalcule un chemin : <span class="citation">Je contourne l'obstacle.</span></li>
+            <li>Il annonce la <b>distance et le côté</b> dès qu'il voit l'obstacle sur son chemin (jusqu'à 90 cm devant) : <span class="citation">Obstacle à 45 cm, devant à gauche. Je change d'itinéraire.</span> En manuel, il prévient dès 50 cm puis freine : <span class="citation">Attention, obstacle à 35 cm, devant. Je ralentis.</span></li>
+            <li>S'il est collé à l'obstacle, il recule d'abord de 20 cm (si la place derrière est libre) : <span class="citation">Je recule pour mieux passer.</span></li>
+            <li>Après plusieurs essais sans se rapprocher du but, il abandonne au lieu de tourner en rond : <span class="citation">Je n'arrive pas à passer. Je m'arrête au plus près.</span></li>
+            <li>Passage étroit : il réessaie avec une marge plus fine, dans la zone déjà vue, et roule doucement : <span class="citation">Passage étroit, j'y vais doucement.</span></li>
+            <li>Cible impossible à atteindre (derrière un mur, dans un meuble) : il va au point accessible le plus proche : <span class="citation">Je ne peux pas aller jusque-là. Je vais au plus près.</span></li>
+            <li>Au but : <span class="citation">Arrivé !</span></li>
+          </ol>
+          <p>Il annonce aussi les recalculs, la batterie faible, l'arrêt d'urgence et le mode manuel. Le buzzer du robot joue en même temps.</p>
+        </div></div></div>
+      </div>
+
+      <div class="section">
+        <button><span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 20V4"/><path d="M4 20h16"/><rect x="7.5" y="11" width="3" height="6" rx=".6"/><rect x="12.5" y="7" width="3" height="10" rx=".6"/><rect x="17.5" y="13" width="2.5" height="4" rx=".6"/></svg></span><span>Comparer les algorithmes<span class="sous">Pour le rapport et la soutenance</span></span><span class="chevron"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg></span></button>
+        <div class="contenu"><div><div class="int">
+          <ol class="etapes">
+            <li>Touche un point sur la carte.</li>
+            <li>Appuie sur <b>COMPARER</b> : les 3 chemins s'affichent en pointillés.</li>
+          </ol>
+          <p><b>Longueur</b> : chemin après lissage. <b>Calcul</b> : temps mis par l'algorithme. <b>Nœuds</b> : cases explorées (A*, Dijkstra) ou points de l'arbre (RRT). <b>Virages</b> : total des changements de direction, qui coûtent de l'énergie.</p>
+          <p>A* et Dijkstra trouvent le même chemin le plus court, mais A* explore bien moins. RRT est rapide mais fait des détours.</p>
+        </div></div></div>
+      </div>
+
+      <div class="section" id="sectionVoix">
+        <button><span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 9.5h3.5L12 5.5v13l-4.5-4H4z"/><path d="M15.5 9a4 4 0 0 1 0 6"/><path d="M18.3 6.3a8 8 0 0 1 0 11.4"/></svg></span><span>Voix du robot<span class="sous">Choisir la voix, le débit, tester</span></span><span class="chevron"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg></span></button>
+        <div class="contenu"><div><div class="int">
+          <div class="reglages">
+            <label>VOIX<select id="choixVoix"><option>Automatique</option></select></label>
+            <label>DÉBIT <span id="valDebit"></span><input type="range" id="debitVoix" min="0.8" max="1.3" step="0.05" value="1"></label>
+            <label>TON <span id="valTon"></span><input type="range" id="tonVoix" min="0.8" max="1.4" step="0.05" value="1"></label>
+            <div class="rangee">
+              <button class="btn-plein" id="testerVoix">▶ Tester</button>
+              <button class="btn-plein second" id="muetVoix">Couper la voix</button>
+            </div>
+            <div class="astuce-voix">La meilleure voix française du téléphone est choisie automatiquement. Sur iPhone, une voix bien plus naturelle s'installe dans <b>Réglages → Accessibilité → Contenu énoncé → Voix → Français</b> : télécharge « Amélie » ou « Thomas » en version <b>améliorée</b>. Sur PC avec Edge, choisis une voix « Online (Natural) ».</div>
+          </div>
+        </div></div></div>
+      </div>
+
+      <div class="section">
+        <button><span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l7.5 3v5.5c0 4.7-3.2 8.2-7.5 9.5-4.3-1.3-7.5-4.8-7.5-9.5V6z"/><path d="M8.8 12.2l2.2 2.2 4.3-4.6"/></svg></span><span>Sécurité<span class="sous">Ce que le robot refuse de faire</span></span><span class="chevron"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg></span></button>
+        <div class="contenu"><div><div class="int">
+          <p>• Vitesse plafonnée à 0,22 m/s, le maximum du TurtleBot3 Burger.<br>• Arrêt immédiat si un objet se trouve à moins de 15 cm devant.<br>• En manuel : freinage progressif puis arrêt à 20 cm d'un obstacle, en avant comme en arrière.<br>• En manuel, arrêt si le téléphone n'envoie plus rien pendant 0,5 s.<br>• Pas de mission sans LiDAR, ni sous 10,6 V de batterie ; alerte vocale sous 11 V.<br>• En cas d'erreur du programme, les moteurs reçoivent « stop ».</p>
+          <div class="encart">Premiers essais : vitesse 1, espace dégagé, le doigt près de l'ARRÊT D'URGENCE.</div>
+        </div></div></div>
+      </div>
+
+      <div class="section">
+        <button><span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 4.5a4.5 4.5 0 0 0-4.3 5.9L3.8 17.3a2 2 0 0 0 2.9 2.9l6.9-6.9A4.5 4.5 0 0 0 19.5 9l-2.8 2.8-3-.5-.5-3L16 5.5A4.5 4.5 0 0 0 15 4.5z"/></svg></span><span>Dépannage<span class="sous">Si quelque chose ne va pas</span></span><span class="chevron"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg></span></button>
+        <div class="contenu"><div><div class="int">
+          <p><b>« Connexion perdue »</b> : le téléphone n'est plus sur le Wi-Fi du robot, ou station_mobile.py est arrêté.</p>
+          <p><b>LED LIDAR rouge</b> : le bringup (terminal 1) ne tourne pas.</p>
+          <p><b>« Refusé : arrêt d'urgence actif »</b> : appuie sur B ou sur le bouton rouge pour libérer.</p>
+          <p><b>Pas de son</b> : mode silencieux de l'iPhone, volume, ou touche DÉMARRER non pressée.</p>
+          <p><b>Carte décalée</b> : CARTE RAZ (maintenir 1 s), puis refais un tour lentement.</p>
+          <p><b>« Où suis-je ? » qui dure</b> : fais tourner le robot sur place. S'il dit « Je ne reconnais pas cet endroit », ce n'est pas la pièce enregistrée : CARTE RAZ.</p>
+        </div></div></div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<script>
+"use strict";
+const $ = (id) => document.getElementById(id);
+const COUL = { "A*": "#39e58c", "Dijkstra": "#49a8ff", "RRT": "#ff9f43" };
+
+let etat = null, carte = null, carteImg = null, versionCarte = -1, chargeCarte = false;
+let dernierOK = 0, dernierEvt = null, vue = "carte";
+let cible = null;                      // destination choisie, pas encore lancée
+let camera = { x: 0, y: 0, ppm: 70, suivre: true };   // pixels par mètre
+let joy = { actif: false, x: 0, y: 0, id: null };
+let son = { actif: false, voix: null, ctx: null };
+
+// ===================== RÉSEAU =====================
+async function api(chemin, corps) {
+  try {
+    const r = await fetch(chemin, { method: "POST", headers: { "Content-Type": "application/json" },
+                                    body: JSON.stringify(corps || {}) });
+    return await r.json();
+  } catch (e) { return null; }
+}
+
+async function boucleEtat() {
+  try {
+    const r = await fetch("/api/etat", { cache: "no-store" });
+    etat = await r.json(); dernierOK = performance.now();
+    if (etat.carte_version !== versionCarte) chargerCarte();
+    traiterEvenements(); majHUD();
+  } catch (e) {}
+  majLien();
+  setTimeout(boucleEtat, 140);
+}
+
+async function chargerCarte() {
+  if (chargeCarte) return; chargeCarte = true;
+  try {
+    const r = await fetch("/api/carte", { cache: "no-store" });
+    const c = await r.json();
+    const brut = atob(c.cases), n = c.largeur * c.hauteur;
+    // Deux rendus : CARTE (écran sombre) et PLAN (papier blanc, murs noirs, comme un plan de salle)
+    const couleurs = { carte: { 2: [150, 235, 255, 255], 1: [14, 38, 50, 255] },
+                       plan:  { 2: [28, 36, 46, 255],   1: [255, 255, 255, 255] } };
+    const rendus = {};
+    for (const style of ["carte", "plan"]) {
+      const off = document.createElement("canvas"); off.width = c.largeur; off.height = c.hauteur;
+      const g = off.getContext("2d"), img = g.createImageData(c.largeur, c.hauteur);
+      for (let i = 0; i < n; i++) {
+        const v = brut.charCodeAt(i), coul = couleurs[style][v];
+        if (!coul) continue;                                   // inconnu : transparent
+        // la ligne 0 de la grille est en bas : on retourne verticalement
+        const l = Math.floor(i / c.largeur), col = i % c.largeur;
+        const j = ((c.hauteur - 1 - l) * c.largeur + col) * 4;
+        img.data[j] = coul[0]; img.data[j+1] = coul[1]; img.data[j+2] = coul[2]; img.data[j+3] = coul[3];
+      }
+      g.putImageData(img, 0, 0); rendus[style] = off;
+    }
+    carte = c; carteImg = rendus; versionCarte = c.version;
+  } catch (e) {}
+  chargeCarte = false;
+}
+
+// ===================== SON & VOIX =====================
+// Réglages mémorisés sur ce téléphone (facultatif : tout marche sans)
+const PREFS = (() => { try { return JSON.parse(localStorage.getItem("tb3_voix") || "{}"); } catch (e) { return {}; } })();
+function sauverPrefs() { try { localStorage.setItem("tb3_voix", JSON.stringify(PREFS)); } catch (e) {} }
+
+// Les voix « naturelles » (Edge, iOS améliorées, Google) sont bien plus agréables :
+// on les classe et on prend la meilleure voix française disponible.
+function noteVoix(v) {
+  if (!/^fr/i.test(v.lang)) return -1;
+  let n = 10, nom = v.name;
+  if (/fr[-_]FR/i.test(v.lang)) n += 3;
+  if (/Natural|Neural|Online/i.test(nom)) n += 9;           // Edge / Windows : voix neuronales
+  if (/Premium|Enhanced|Amélior|Siri/i.test(nom)) n += 8;   // iPhone : voix améliorées
+  if (/Google/i.test(nom)) n += 6;                          // Chrome / Android
+  if (/Am[ée]lie|Audrey|Thomas|Marie|Denise|Henri|Vivienne|Eloise|Remy|Aurélie|Julie/i.test(nom)) n += 2;
+  if (/Compact|eSpeak/i.test(nom)) n -= 6;                  // voix robotiques de secours
+  return n;
+}
+function voixFrancaises() {
+  if (!("speechSynthesis" in window)) return [];
+  return speechSynthesis.getVoices().filter(v => noteVoix(v) >= 0).sort((a, b) => noteVoix(b) - noteVoix(a));
+}
+function choisirVoix() {
+  const liste = voixFrancaises();
+  son.voix = liste.find(v => v.name === PREFS.nom) || liste[0] || null;
+  remplirListeVoix();
+}
+function initSon() {
+  son.actif = true;
+  try { son.ctx = new (window.AudioContext || window.webkitAudioContext)(); } catch (e) {}
+  if ("speechSynthesis" in window) {
+    choisirVoix(); speechSynthesis.onvoiceschanged = choisirVoix;
+    const u = new SpeechSynthesisUtterance(" "); u.volume = 0; speechSynthesis.speak(u);   // déverrouille iOS
+  }
+}
+function bip(type) {
+  if (!son.ctx) return;
+  const notes = { obstacle: [[880, .09], [660, .12]], arrive: [[523, .1], [659, .1], [784, .18]],
+                  depart: [[660, .07], [990, .1]], urgence: [[400, .15], [300, .25]], clic: [[1800, .025]],
+                  echec: [[300, .2], [220, .3]], info: [[1200, .06]] }[type] || [[1000, .05]];
+  let t = son.ctx.currentTime;
+  for (const [f, d] of notes) {
+    const o = son.ctx.createOscillator(), g = son.ctx.createGain();
+    o.type = type === "clic" ? "square" : "sine"; o.frequency.value = f;
+    g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(type === "clic" ? .04 : .18, t + .015);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + d);
+    o.connect(g).connect(son.ctx.destination); o.start(t); o.stop(t + d + .02); t += d * .9;
+  }
+}
+let fileParole = 0;
+function parler(texte, force) {
+  if (!son.actif || !("speechSynthesis" in window)) return;
+  if (PREFS.muet && !force) return;
+  // Une phrase plus récente remplace celle en cours (le robot ne « bégaie » pas)
+  if (speechSynthesis.speaking || speechSynthesis.pending) speechSynthesis.cancel();
+  const u = new SpeechSynthesisUtterance(texte);
+  u.lang = "fr-FR"; if (son.voix) u.voice = son.voix;
+  u.rate = PREFS.debit || 1.0;                 // naturel : ni accéléré, ni aigu
+  u.pitch = PREFS.ton || 1.0;
+  u.volume = 1;
+  const id = ++fileParole;
+  $("hp").classList.add("parle");
+  u.onend = u.onerror = () => { if (id === fileParole) $("hp").classList.remove("parle"); };
+  speechSynthesis.speak(u);
+  setTimeout(() => { if (id === fileParole) $("hp").classList.remove("parle"); }, 6000);
+}
+let minuterieBulle = null;
+function traiterEvenements() {
+  const evts = etat.evenements || [];
+  if (dernierEvt === null) { dernierEvt = evts.length ? evts[evts.length - 1].id : 0; return; }
+  for (const e of evts) {
+    if (e.id <= dernierEvt) continue;
+    dernierEvt = e.id;
+    const b = $("bulle"); b.textContent = e.texte; b.className = "bulle visible " + e.type;
+    clearTimeout(minuterieBulle); minuterieBulle = setTimeout(() => b.classList.remove("visible"), 3200);
+    const s = { obstacle: "obstacle", arrive: "arrive", depart: "depart", base: "depart", urgence: "urgence",
+                echec: "echec", contourne: "info", itineraire: "info", reprise: "info", obstacle_loin: "info", recul: "info", exploration: "depart", zone: "info",
+                exploration_finie: "arrive", bloque_proche: "echec",
+                position_trouvee: "arrive", carte_enregistree: "info", lieu: "info" }[e.type];
+    if (s) bip(s);
+    setTimeout(() => parler(e.texte), s ? 380 : 0);
+    if (navigator.vibrate && (e.type === "obstacle" || e.type === "obstacle_loin" || e.type === "urgence")) navigator.vibrate([60, 40, 60]);
+  }
+}
+
+// ===================== HUD =====================
+const NOMS = { attente: "EN ATTENTE", planification: "CALCUL DU CHEMIN…", en_route: "EN ROUTE",
+  obstacle: "OBSTACLE — ANALYSE", recul: "MARCHE ARRIÈRE — DÉGAGEMENT", arrive: "ARRIVÉ À DESTINATION", echec: "BLOQUÉ — AUCUN CHEMIN", manuel: "MODE MANUEL" };
+function majLien() {
+  const ok = performance.now() - dernierOK < 1500;
+  $("signal").className = "signal " + (ok ? "ok" : "ko");
+  $("ledLien").className = "led " + (ok ? "on" : "err");
+  $("ledAlim").style.background = ok ? "" : "var(--rouge)";
+  if (!ok) { $("statutTexte").textContent = "CONNEXION PERDUE"; $("statut").className = "statut echec"; }
+  const d = new Date(); $("horloge").textContent = d.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" });
+}
+function majHUD() {
+  const e = etat;
+  const sim = e.station === "simulation";
+  $("puceMode").textContent = sim ? "SIMULATION" : "ROBOT RÉEL";
+  $("puceMode").className = "puce " + (sim ? "mode-sim" : "mode-robot");
+  $("simObstacle").style.display = $("simRetirer").style.display = sim ? "" : "none";
+  $("puceAlgo").textContent = e.algo; $("puceAlgo").style.color = COUL[e.algo];
+  $("txtVitesse").textContent = e.v_max.toFixed(2);
+  for (const id of ["crans", "cransMenu"]) [...$(id).children].forEach((b, i) => b.classList.toggle("on", i < e.vitesse_niveau));
+  $("puceVue").textContent = { carte: "CARTE", plan: "PLAN", radar: "RADAR" }[vue];
+  majFiche();
+  // Batterie (valeur réelle de /battery_state sur le robot)
+  if (e.tension != null) {
+    $("battTexte").textContent = `${e.batterie_pct}% ${e.tension.toFixed(1)}V`;
+    $("battNiveau").style.width = Math.max(4, e.batterie_pct) * 0.18 + "px";
+    $("batt").className = "batt" + (e.batterie_alerte ? " alerte" : "");
+  } else { $("battTexte").textContent = "--"; }
+  // Statut
+  let cls = e.etat, txt = NOMS[e.etat] || e.etat.toUpperCase();
+  if (e.arret_urgence) { cls = "urgence"; txt = "ARRÊT D'URGENCE — B POUR LIBÉRER"; }
+  if (e.etat === "echec" && e.plan && e.plan.raison) txt = "ÉCHEC : " + e.plan.raison.toUpperCase();
+  if (e.exploration && !e.arret_urgence) txt = "EXPLORATION · ZONE " + e.exploration.etapes + " · " + txt;
+  if (!e.localise && !e.arret_urgence) { cls = "localisation"; txt = "OÙ SUIS-JE ? RECHERCHE SUR LA CARTE…"; }
+  $("statut").className = "statut " + cls; $("statutTexte").textContent = txt;
+  $("ecran").classList.toggle("urgence-on", e.arret_urgence);
+  document.querySelectorAll("[data-role=arret]").forEach(b => b.classList.toggle("enfonce", e.arret_urgence));
+  // Mesures
+  $("mV").textContent = e.vitesse[0].toFixed(2);
+  $("mObs").textContent = e.obstacle_devant == null ? "—" : e.obstacle_devant.toFixed(2) + "m";
+  const plan = e.plan && e.plan.succes ? e.plan : null;
+  $("mCalc").textContent = plan ? (plan.temps_ms < 10 ? plan.temps_ms.toFixed(1) : Math.round(plan.temps_ms)) + "ms" : "—";
+  $("mReste").textContent = (e.but && e.pose && ["en_route", "obstacle", "planification", "recul"].includes(e.etat))
+    ? Math.hypot(e.but[0] - e.pose[0], e.but[1] - e.pose[1]).toFixed(2) + "m" : "—";
+  // LEDs
+  $("ledLidar").className = "led " + (e.age_scan != null && e.age_scan < 1 ? "on" : "err");
+  $("ledNav").className = "led " + ({ en_route: "on", arrive: "on", planification: "att", obstacle: "att", echec: "err" }[e.etat] || "");
+  // Bouton A prêt
+  $("bA").classList.toggle("pret", !!cible && !e.arret_urgence);
+  $("astuce").style.display = (e.localise && !cible && vue !== "radar" && ["attente", "arrive", "echec", "manuel"].includes(e.etat) && !e.arret_urgence && !$("panneau").classList.contains("visible")) ? "" : "none";
+  // Bilan de mission à l'arrivée
+  if (panneauLieux && $("panneau").classList.contains("visible")) {
+    const cle = JSON.stringify([e.lieux, e.carte_enregistree, e.localise, !!e.exploration]);
+    if (cle !== panneauLieux) afficherLieux();
+  }
+  if (e.bilan && e.bilan !== dernierBilanAffiche && JSON.stringify(e.bilan) !== JSON.stringify(dernierBilanAffiche)) {
+    dernierBilanAffiche = e.bilan; if (e.bilan.resultat === "arrive" && !e.bilan.exploration) afficherBilan(e.bilan);
+  }
+}
+let dernierBilanAffiche = null;
+
+function afficherBilan(b) {
+  panneauLieux = null;
+  const dv = (b.tension_debut != null && b.tension_fin != null) ? (b.tension_fin - b.tension_debut) : null;
+  $("panneau").innerHTML = `<h3><span>BILAN DE MISSION</span><button class="fermer" data-fermer>✕</button></h3>
+    <table>
+      <tr><td>Algorithme</td><td style="color:${COUL[b.algo]}">${b.algo}</td></tr>
+      <tr><td>Durée</td><td>${b.duree_s} s</td></tr>
+      <tr><td>Chemin prévu</td><td>${b.chemin_prevu_m ?? "—"} m</td></tr>
+      <tr><td>Distance parcourue</td><td>${b.distance_m} m</td></tr>
+      <tr><td>Obstacles imprévus</td><td>${b.obstacles}</td></tr>
+      <tr><td>Recalculs de chemin</td><td>${b.replanifications}</td></tr>
+      ${b.au_plus_pres_manque_m ? `<tr><td>But inaccessible : au plus près</td><td>${b.au_plus_pres_manque_m.toFixed(2)} m du but</td></tr>` : ""}
+      <tr><td>Batterie</td><td>${b.tension_debut != null ? b.tension_debut.toFixed(2) : "—"} → ${b.tension_fin != null ? b.tension_fin.toFixed(2) : "—"} V</td></tr>
+    </table>
+    <div class="note">${dv != null ? `Variation de tension : ${dv >= 0 ? "+" : ""}${dv.toFixed(2)} V (mesure réelle de la batterie${etat.station === "simulation" ? ", simulée ici" : ""}).` : ""}</div>`;
+  $("panneau").classList.add("visible");
+}
+
+function afficherComparaison(c) {
+  panneauLieux = null;
+  const lignes = c.resultats.map(r => `<tr><td><span class="carre" style="background:${COUL[r.algo]}"></span>${r.algo}</td>
+    <td>${r.succes ? r.longueur_m.toFixed(2) + " m" : "échec"}</td><td>${r.temps_ms.toFixed(1)} ms</td>
+    <td>${r.noeuds}</td><td>${r.succes ? r.virages_deg + "°" : "—"}</td></tr>`).join("");
+  $("panneau").innerHTML = `<h3><span>COMPARAISON SUR LA CARTE RÉELLE</span><button class="fermer" data-fermer>✕</button></h3>
+    <table><tr><th>ALGO</th><th>LONGUEUR</th><th>CALCUL</th><th>NŒUDS</th><th>VIRAGES</th></tr>${lignes}</table>
+    <div class="note">Mêmes départ et arrivée. Longueur après lissage. Les virages coûtent de l'énergie (rotations). Choisis l'algo avec ALGO puis A = GO.</div>`;
+  $("panneau").classList.add("visible");
+}
+function echapper(s) { return String(s).replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c])); }
+let panneauLieux = null;               // panneau CARTE & LIEUX ouvert (sa dernière version affichée)
+function afficherLieux() {
+  const e = etat; if (!e) return;
+  const saisie = $("nomLieu") && document.activeElement === $("nomLieu") ? $("nomLieu").value : null;
+  if (saisie !== null && panneauLieux) return;          // ne pas effacer ce qu'on est en train de taper
+  panneauLieux = JSON.stringify([e.lieux, e.carte_enregistree, e.localise, !!e.exploration, e.carte_nom, e.slam && e.slam.actif]);
+  const noms = Object.keys(e.lieux || {});
+  const lignes = noms.map(n => `<tr><td class="lieu-nom">◆ ${echapper(n)}</td><td>
+      <button class="act petit principal" data-aller="${echapper(n)}">ALLER</button>
+      <button class="act petit" data-suppr="${echapper(n)}" aria-label="Supprimer ${echapper(n)}">✕</button></td></tr>`).join("");
+  $("panneau").innerHTML = `<h3><span>CARTE &amp; LIEUX</span><button class="fermer" data-fermer>✕</button></h3>
+    <div class="note" style="margin:0 0 4px">Carte <b style="color:#fff">${echapper(e.carte_nom || "sans nom")}</b>${e.slam ? ` · <span style="color:#5cf0a0">slam_toolbox ${e.slam.actif ? "actif" : "en attente"}</span>` : ""}.
+      ${e.carte_enregistree ? "Enregistrée le " + echapper(e.carte_enregistree) + "." : "Pas encore enregistrée."}
+      ${e.localise ? "" : " Le robot cherche sa position : fais-le tourner un peu sur place si ça dure."}</div>
+    <div class="actions">
+      <button class="act principal" data-act="enregistrer">ENREGISTRER</button>
+      <button class="act" data-act="enregistrer-sous">SOUS UN NOM…</button>
+      <button class="act" data-act="mes-cartes">MES CARTES…</button>
+    </div>
+    <div class="actions" style="margin-top:6px">
+      <button class="act" data-act="relocaliser">OÙ SUIS-JE ?</button>
+      <button class="act" data-act="explorer">${e.exploration ? "ARRÊTER L'EXPLORATION" : "EXPLORER SEUL"}</button>
+      <button class="act" data-act="plan-png">PLAN EN IMAGE</button>
+    </div>
+    ${noms.length ? `<table>${lignes}</table>` : `<div class="note">Aucun lieu. Amène le robot à un endroit, puis mémorise-le ci-dessous.</div>`}
+    <div class="saisie"><input id="nomLieu" maxlength="24" placeholder="Nom du lieu (ex. Bureau)" autocomplete="off" enterkeyhint="done">
+      <button class="act petit principal" data-act="memoriser">+ MÉMORISER ICI</button></div>
+    <div class="note">Au prochain démarrage, la carte et les lieux reviennent seuls. Le robot peut être posé n'importe où : il se retrouve en comparant son LiDAR à la carte.</div>`;
+  $("panneau").classList.add("visible");
+}
+async function actionLieux(ev) {
+  const b = ev.target.closest("button"); if (!b) return;
+  let r = null;
+  if (b.dataset.act === "enregistrer") { r = await api("/api/carte/enregistrer"); if (r && r.ok) flash("CARTE ENREGISTRÉE"); }
+  else if (b.dataset.act === "explorer") {
+    if (etat && etat.exploration) { r = await api("/api/annuler"); flash("EXPLORATION ARRÊTÉE"); }
+    else { r = await api("/api/explorer", { algo: etat && etat.algo });
+      if (r && r.ok) { cible = null; camera.suivre = true; $("panneau").classList.remove("visible"); panneauLieux = null; flash("EXPLORATION AUTONOME"); } }
+  }
+  else if (b.dataset.act === "enregistrer-sous") { ouvrirEnregistrerSous(); return; }
+  else if (b.dataset.act === "mes-cartes") { ouvrirMesCartes(); return; }
+  else if (b.dataset.act === "plan-png") { exporterPlan(); return; }
+  else if (b.dataset.act === "relocaliser") { r = await api("/api/relocaliser"); if (r && r.ok) flash("JE CHERCHE MA POSITION…"); }
+  else if (b.dataset.act === "memoriser") {
+    const nom = $("nomLieu").value.trim();
+    if (!nom) { flash("DONNE UN NOM AU LIEU"); $("nomLieu").focus(); return; }
+    r = await api("/api/lieu", { nom }); if (r && r.ok) { $("nomLieu").value = ""; $("nomLieu").blur(); flash("LIEU MÉMORISÉ : " + nom.toUpperCase()); }
+  }
+  else if (b.dataset.aller) {
+    r = await api("/api/lieu/aller", { nom: b.dataset.aller, algo: etat && etat.algo });
+    if (r && r.ok) { cible = null; camera.suivre = true; $("panneau").classList.remove("visible"); panneauLieux = null; }
+  }
+  else if (b.dataset.suppr) {
+    if (!confirm("Supprimer le lieu « " + b.dataset.suppr + " » ?")) return;
+    r = await api("/api/lieu/supprimer", { nom: b.dataset.suppr });
+  }
+  else return;
+  bip("clic");
+  if (r && !r.ok) flash("REFUSÉ : " + (r.raison || "").toUpperCase());
+  panneauLieux = "?";                   // forcer le rafraîchissement
+}
+// ---------- Cartes enregistrées : enregistrer sous un nom, recharger un autre jour ----------
+function ouvrirEnregistrerSous() {
+  panneauLieux = null;
+  const nom = (etat && etat.carte_nom && !/^carte_(robot|simulation)$/.test(etat.carte_nom)) ? etat.carte_nom : "";
+  $("panneau").innerHTML = `<h3><span>ENREGISTRER LA CARTE SOUS…</span><button class="fermer" data-fermer>✕</button></h3>
+    <div class="note" style="margin:0 0 6px">Donne un nom à la carte (ex. Salle 330). Tu pourras la recharger un autre jour depuis MES CARTES. On enregistre aussi le plan au format ROS (.pgm + .yaml)${etat && etat.slam ? " et le graphe de slam_toolbox, pour continuer la carte plus tard" : ""}.</div>
+    <div class="saisie"><input id="nomCarte" maxlength="40" placeholder="Nom de la carte" value="${echapper(nom)}" autocomplete="off" enterkeyhint="done">
+      <button class="act petit principal" data-carte-act="sous">ENREGISTRER</button></div>`;
+  $("panneau").classList.add("visible");
+  setTimeout(() => $("nomCarte").focus(), 50);
+}
+async function ouvrirMesCartes() {
+  panneauLieux = null;
+  $("panneau").innerHTML = `<h3><span>MES CARTES</span><button class="fermer" data-fermer>✕</button></h3><div class="note">Chargement…</div>`;
+  $("panneau").classList.add("visible");
+  let liste = [];
+  try { liste = (await (await fetch("/api/cartes", { cache: "no-store" })).json()).cartes || []; } catch (e) {}
+  const lignes = liste.map(c => `<tr><td class="lieu-nom">${c.courante ? "▶" : "▦"} ${echapper(c.nom)}
+        <div class="note" style="margin:2px 0 0">${echapper(c.date || "?")} · ${c.surface_m2 != null ? nombre(c.surface_m2, 1) + " m²" : "?"} · ${c.lieux} lieu${c.lieux > 1 ? "x" : ""}${c.slam ? " · slam" : ""}</div></td>
+      <td>${c.courante ? `<span class="note">en cours</span>` : `<button class="act petit principal" data-charger="${echapper(c.nom)}">CHARGER</button>`}</td></tr>`).join("");
+  $("panneau").innerHTML = `<h3><span>MES CARTES</span><button class="fermer" data-fermer>✕</button></h3>
+    ${liste.length ? `<table>${lignes}</table>` : `<div class="note">Aucune carte enregistrée pour l'instant.</div>`}
+    <div class="note">Charger une carte : le robot peut être posé n'importe où dessus, il se retrouve seul (il tourne un peu sur place). Pense à enregistrer la carte en cours avant d'en charger une autre.</div>
+    <div class="actions" style="margin-top:6px"><button class="act" data-carte-act="retour">◀ RETOUR</button></div>`;
+}
+async function actionCartes(ev) {
+  const b = ev.target.closest("button"); if (!b) return false;
+  if (b.dataset.carteAct === "retour") { afficherLieux(); return true; }
+  if (b.dataset.carteAct === "sous") {
+    const nom = $("nomCarte").value.trim();
+    if (!nom) { flash("DONNE UN NOM À LA CARTE"); $("nomCarte").focus(); return true; }
+    const r = await api("/api/carte/enregistrer", { nom });
+    if (r && r.ok) { flash("CARTE ENREGISTRÉE : " + nom.toUpperCase()); afficherLieux(); }
+    else flash("REFUSÉ : " + ((r && r.raison) || "").toUpperCase());
+    return true;
+  }
+  if (b.dataset.charger) {
+    if (!confirm("Charger la carte « " + b.dataset.charger + " » ? La carte en cours sera remplacée (enregistre-la avant si besoin).")) return true;
+    const r = await api("/api/carte/charger", { nom: b.dataset.charger });
+    if (r && r.ok) { flash("CARTE CHARGÉE : JE CHERCHE MA POSITION…"); versionCarte = -1; afficherLieux(); }
+    else flash("REFUSÉ : " + ((r && r.raison) || "").toUpperCase());
+    return true;
+  }
+  return false;
+}
+
+// ---------- Plan en image (PNG) : présentable, à imprimer ou à mettre dans le rapport ----------
+function exporterPlan() {
+  if (!carte || !carteImg) { flash("PAS ENCORE DE CARTE"); return; }
+  const res = carte.resolution, ox = carte.origine[0], oy = carte.origine[1];
+  const lm = carte.largeur * res, hm = carte.hauteur * res;           // taille de la carte en mètres
+  const ppm = Math.max(60, Math.min(160, Math.floor(1700 / Math.max(lm, hm))));   // pixels par mètre
+  const marge = { g: 70, d: 40, h: 96, b: 110 };
+  const W = Math.round(lm * ppm) + marge.g + marge.d, Hh = Math.round(hm * ppm) + marge.h + marge.b;
+  const cv = document.createElement("canvas"); cv.width = W; cv.height = Hh;
+  const g = cv.getContext("2d");
+  const X = (x) => marge.g + (x - ox) * ppm, Y = (y) => marge.h + (oy + hm - y) * ppm;
+  g.fillStyle = "#ffffff"; g.fillRect(0, 0, W, Hh);
+  // Fond « inconnu » hachuré gris clair
+  g.save(); g.beginPath(); g.rect(marge.g, marge.h, lm * ppm, hm * ppm); g.clip();
+  g.fillStyle = "#f1f3f5"; g.fillRect(marge.g, marge.h, lm * ppm, hm * ppm);
+  g.strokeStyle = "#e3e7eb"; g.lineWidth = 1;
+  for (let k = -Hh; k < W; k += 12) { g.beginPath(); g.moveTo(k, marge.h + hm * ppm); g.lineTo(k + hm * ppm, marge.h); g.stroke(); }
+  // Zones libres en blanc, murs en noir (rendu PLAN, agrandi sans flou)
+  g.imageSmoothingEnabled = false;
+  g.drawImage(carteImg.plan, marge.g, marge.h, lm * ppm, hm * ppm);
+  // Grille : fine tous les 0,5 m, appuyée tous les 1 m
+  for (let pas of [0.5, 1]) {
+    g.strokeStyle = pas === 1 ? "rgba(70,90,110,.30)" : "rgba(70,90,110,.13)"; g.lineWidth = 1;
+    for (let x = Math.ceil(ox / pas) * pas; x <= ox + lm + 1e-9; x += pas) { g.beginPath(); g.moveTo(X(x), marge.h); g.lineTo(X(x), marge.h + hm * ppm); g.stroke(); }
+    for (let y = Math.ceil(oy / pas) * pas; y <= oy + hm + 1e-9; y += pas) { g.beginPath(); g.moveTo(marge.g, Y(y)); g.lineTo(marge.g + lm * ppm, Y(y)); g.stroke(); }
+  }
+  // Axes X (rouge) et Y (vert) passant par la base
+  g.lineWidth = 2;
+  if (oy <= 0 && 0 <= oy + hm) { g.strokeStyle = "#d63b47"; g.beginPath(); g.moveTo(marge.g, Y(0)); g.lineTo(marge.g + lm * ppm, Y(0)); g.stroke(); }
+  if (ox <= 0 && 0 <= ox + lm) { g.strokeStyle = "#1f9d5c"; g.beginPath(); g.moveTo(X(0), marge.h); g.lineTo(X(0), marge.h + hm * ppm); g.stroke(); }
+  g.restore();
+  // Cadre + graduations en mètres
+  g.strokeStyle = "#2b3440"; g.lineWidth = 1.5; g.strokeRect(marge.g, marge.h, lm * ppm, hm * ppm);
+  g.font = "600 15px system-ui, -apple-system, Segoe UI, sans-serif"; g.fillStyle = "#2b3440";
+  g.textAlign = "center"; g.textBaseline = "top";
+  for (let x = Math.ceil(ox); x <= ox + lm; x++) { g.fillRect(X(x) - 0.5, marge.h + hm * ppm, 1, 7); g.fillText(nombre(x, 0), X(x), marge.h + hm * ppm + 10); }
+  g.textAlign = "right"; g.textBaseline = "middle";
+  for (let y = Math.ceil(oy); y <= oy + hm; y++) { g.fillRect(marge.g - 7, Y(y) - 0.5, 7, 1); g.fillText(nombre(y, 0), marge.g - 11, Y(y)); }
+  g.fillStyle = "#d63b47"; g.textAlign = "right"; g.textBaseline = "top"; g.fillText("X (m) →", marge.g + lm * ppm, marge.h + hm * ppm + 30);
+  g.fillStyle = "#1f9d5c"; g.textAlign = "left"; g.textBaseline = "bottom"; g.fillText("↑ Y (m)", 8, marge.h - 8);
+  // Base H et lieux mémorisés
+  const pastille = (x, y, coul, lettre) => { g.beginPath(); g.arc(X(x), Y(y), 11, 0, 2 * Math.PI); g.fillStyle = coul; g.fill();
+    g.lineWidth = 2; g.strokeStyle = "#fff"; g.stroke(); g.fillStyle = "#fff"; g.font = "800 12px system-ui, sans-serif";
+    g.textAlign = "center"; g.textBaseline = "middle"; g.fillText(lettre, X(x), Y(y) + 0.5); };
+  const etiquette = (x, y, txt, coul) => { g.font = "700 14px system-ui, sans-serif"; g.textAlign = "left"; g.textBaseline = "middle";
+    const w = g.measureText(txt).width + 10; g.fillStyle = "rgba(255,255,255,.88)"; g.fillRect(X(x) + 15, Y(y) - 10, w, 20);
+    g.fillStyle = coul; g.fillText(txt, X(x) + 20, Y(y)); };
+  if (etat && etat.base) { pastille(etat.base[0], etat.base[1], "#e0a100", "H");
+    etiquette(etat.base[0], etat.base[1], "Base (" + nombre(etat.base[0], 2) + " ; " + nombre(etat.base[1], 2) + ")", "#7a5800"); }
+  for (const [nom, q] of Object.entries((etat && etat.lieux) || {})) {
+    pastille(q[0], q[1], "#7c4dff", "◆"); etiquette(q[0], q[1], nom + " (" + nombre(q[0], 2) + " ; " + nombre(q[1], 2) + ")", "#4b2bb3");
+  }
+  // Cartouche : titre, date, surface, échelle
+  const titre = "Plan — " + ((etat && etat.carte_nom) || "carte").replace(/_/g, " ");
+  g.fillStyle = "#111820"; g.textAlign = "left"; g.textBaseline = "alphabetic";
+  g.font = "800 28px system-ui, -apple-system, Segoe UI, sans-serif"; g.fillText(titre, marge.g, 44);
+  const libres = (() => { let n = 0; const b = atob(carte.cases); for (let i = 0; i < b.length; i++) if (b.charCodeAt(i) === 1) n++; return n * res * res; })();
+  g.font = "500 15px system-ui, sans-serif"; g.fillStyle = "#4a5562";
+  g.fillText(`TurtleBot3 Burger · LiDAR · ${etat && etat.slam ? "slam_toolbox" : "SLAM de la station"} · ${new Date().toLocaleString("fr-FR")} · surface libre ≈ ${nombre(libres, 1)} m² · 1 case = ${res * 100} cm`, marge.g, 70);
+  // Barre d'échelle 1 m
+  const bx = W - marge.d - ppm, by = Hh - 34;
+  g.fillStyle = "#111820"; g.fillRect(bx, by, ppm / 2, 8); g.strokeStyle = "#111820"; g.lineWidth = 1.5; g.strokeRect(bx, by, ppm, 8);
+  g.font = "600 14px system-ui, sans-serif"; g.textAlign = "center"; g.textBaseline = "bottom";
+  g.fillText("0", bx, by - 3); g.fillText("0,5", bx + ppm / 2, by - 3); g.fillText("1 m", bx + ppm, by - 3);
+  // Légende
+  const leg = [["#1c242e", "Mur / obstacle"], ["#ffffff", "Zone libre"], ["#eef1f4", "Non exploré"]];
+  g.font = "500 14px system-ui, sans-serif"; g.textAlign = "left"; g.textBaseline = "middle";
+  let lx = marge.g;
+  for (const [c, txt] of leg) { g.fillStyle = c; g.fillRect(lx, Hh - 38, 16, 16); g.strokeStyle = "#8a96a3"; g.lineWidth = 1; g.strokeRect(lx, Hh - 38, 16, 16);
+    g.fillStyle = "#2b3440"; g.fillText(txt, lx + 22, Hh - 30); lx += g.measureText(txt).width + 50; }
+  const nomFichier = "plan_" + ((etat && etat.carte_nom) || "carte") + ".png";
+  cv.toBlob(async (blob) => {
+    if (!blob) { flash("EXPORT IMPOSSIBLE"); return; }
+    const fichier = new File([blob], nomFichier, { type: "image/png" });
+    try {
+      if (navigator.canShare && navigator.canShare({ files: [fichier] })) { await navigator.share({ files: [fichier], title: titre }); return; }
+    } catch (e) { if (e && e.name === "AbortError") return; }
+    const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = nomFichier;
+    document.body.appendChild(a); a.click(); setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 2000);
+    flash("PLAN ENREGISTRÉ EN IMAGE");
+  }, "image/png");
+}
+
+$("panneau").addEventListener("click", async (ev) => {
+  if (!ev.target.closest("[data-fermer]") && await actionCartes(ev)) return;
+  if (ev.target.closest("[data-fermer]")) { $("panneau").classList.remove("visible"); comparaisonVisible = null; panneauLieux = null; return; }
+  if (panneauLieux) actionLieux(ev);
+});
+$("panneau").addEventListener("keydown", (ev) => { if (ev.key === "Enter" && ev.target.id === "nomCarte") { ev.preventDefault(); $("panneau").querySelector("[data-carte-act=sous]").click(); return; }
+  if (ev.key === "Enter" && ev.target.id === "nomLieu") { ev.preventDefault(); $("panneau").querySelector("[data-act=memoriser]").click(); } });
+let comparaisonVisible = null;
+
+// ===================== DESSIN =====================
+const cv = $("canvas"), ctx = cv.getContext("2d");
+function taille() {
+  const r = cv.getBoundingClientRect(), dpr = window.devicePixelRatio || 1;
+  if (cv.width !== Math.round(r.width * dpr) || cv.height !== Math.round(r.height * dpr)) {
+    cv.width = Math.round(r.width * dpr); cv.height = Math.round(r.height * dpr);
+  }
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  return [r.width, r.height];
+}
+// Monde (x vers la droite, y vers le haut) -> écran
+function versEcran(x, y, L, H) { return [L / 2 + (x - camera.x) * camera.ppm, H / 2 - (y - camera.y) * camera.ppm]; }
+function versMonde(sx, sy, L, H) { return [camera.x + (sx - L / 2) / camera.ppm, camera.y - (sy - H / 2) / camera.ppm]; }
+
+function dessiner(t) {
+  const [L, H] = taille();
+  ctx.clearRect(0, 0, L, H);
+  if (etat && etat.pose && camera.suivre) {
+    camera.x += (etat.pose[0] - camera.x) * 0.15; camera.y += (etat.pose[1] - camera.y) * 0.15;
+  }
+  if (vue === "radar") dessinerRadar(L, H, t); else dessinerCarte(L, H, t);
+  requestAnimationFrame(dessiner);
+}
+
+function grilleFond(L, H, pas) {
+  ctx.strokeStyle = "rgba(120,200,230,.07)"; ctx.lineWidth = 1; ctx.beginPath();
+  const [x0, y1] = versMonde(0, 0, L, H), [x1, y0] = versMonde(L, H, L, H);
+  for (let gx = Math.floor(x0 / pas) * pas; gx <= x1; gx += pas) { const [sx] = versEcran(gx, 0, L, H); ctx.moveTo(sx, 0); ctx.lineTo(sx, H); }
+  for (let gy = Math.floor(y0 / pas) * pas; gy <= y1; gy += pas) { const [, sy] = versEcran(0, gy, L, H); ctx.moveTo(0, sy); ctx.lineTo(L, sy); }
+  ctx.stroke();
+}
+
+function dessinerChemin(points, couleur, largeur, pointille) {
+  if (!points || points.length < 2) return;
+  const [L, H] = [cv.clientWidth, cv.clientHeight];
+  ctx.save(); ctx.strokeStyle = couleur; ctx.lineWidth = largeur; ctx.lineJoin = ctx.lineCap = "round";
+  if (pointille) ctx.setLineDash(pointille);
+  ctx.shadowColor = couleur; ctx.shadowBlur = 8; ctx.beginPath();
+  points.forEach(([x, y], i) => { const [sx, sy] = versEcran(x, y, L, H); i ? ctx.lineTo(sx, sy) : ctx.moveTo(sx, sy); });
+  ctx.stroke(); ctx.restore();
+}
+
+function dessinerRobot(x, y, cap, L, H) {
+  const [sx, sy] = versEcran(x, y, L, H), r = Math.max(7, 0.105 * camera.ppm);
+  ctx.save(); ctx.translate(sx, sy); ctx.rotate(-cap);
+  ctx.fillStyle = "rgba(159,232,255,.10)"; ctx.beginPath(); ctx.arc(0, 0, r * 2.1, -0.35, 0.35); ctx.lineTo(0, 0); ctx.fill();
+  ctx.fillStyle = "#e9f7ff"; ctx.strokeStyle = "#0a1a22"; ctx.lineWidth = 2;
+  ctx.beginPath(); ctx.arc(0, 0, r, 0, 2 * Math.PI); ctx.fill(); ctx.stroke();
+  ctx.fillStyle = "#0a1a22"; ctx.beginPath(); ctx.moveTo(r * .75, 0); ctx.lineTo(-r * .35, r * .5); ctx.lineTo(-r * .35, -r * .5); ctx.closePath(); ctx.fill();
+  ctx.fillStyle = "#39e58c"; ctx.beginPath(); ctx.arc(0, 0, r * .18, 0, 2 * Math.PI); ctx.fill();
+  ctx.restore();
+}
+
+function marqueur(x, y, couleur, t, texte, L, H) {
+  const [sx, sy] = versEcran(x, y, L, H), p = (t / 900) % 1;
+  ctx.save();
+  ctx.strokeStyle = couleur; ctx.globalAlpha = 1 - p; ctx.lineWidth = 2;
+  ctx.beginPath(); ctx.arc(sx, sy, 6 + p * 16, 0, 2 * Math.PI); ctx.stroke(); ctx.globalAlpha = 1;
+  ctx.fillStyle = couleur; ctx.beginPath(); ctx.arc(sx, sy, 5, 0, 2 * Math.PI); ctx.fill();
+  ctx.strokeStyle = couleur; ctx.lineWidth = 1; ctx.beginPath();
+  ctx.moveTo(sx - 14, sy); ctx.lineTo(sx - 8, sy); ctx.moveTo(sx + 8, sy); ctx.lineTo(sx + 14, sy);
+  ctx.moveTo(sx, sy - 14); ctx.lineTo(sx, sy - 8); ctx.moveTo(sx, sy + 8); ctx.lineTo(sx, sy + 14); ctx.stroke();
+  if (texte) { ctx.font = "700 10px ui-monospace, Menlo, monospace"; ctx.fillStyle = couleur; ctx.fillText(texte, sx + 10, sy - 10); }
+  ctx.restore();
+}
+
+// ===================== REPÈRE ORTHONORMÉ =====================
+// Origine (0 ; 0) = point de départ de la carte (la base H). X vers l'avant du robot au
+// départ, Y vers sa gauche (convention ROS). Graduations en mètres, adaptées au zoom.
+const PALETTES = {
+  carte: { fond: null, mineur: "rgba(120,200,230,.07)", majeur: "rgba(120,200,230,.17)", axeX: "#ff6b7a", axeY: "#39e58c",
+           texte: "rgba(159,232,255,.85)", etiquette: "rgba(5,11,16,.75)", cible: "#ffffff" },
+  plan:  { fond: "#e6eaee", mineur: "rgba(40,90,140,.10)", majeur: "rgba(40,90,140,.25)", axeX: "#d63447", axeY: "#178a4c",
+           texte: "#28465f", etiquette: "rgba(255,255,255,.85)", cible: "#0b63c5" } };
+function palette() { return PALETTES[vue] || PALETTES.carte; }
+function pasGraduation() { return camera.ppm > 150 ? 0.25 : camera.ppm > 70 ? 0.5 : camera.ppm > 32 ? 1 : 2; }
+function nombre(v, dec) { return (Math.abs(v) < 1e-9 ? 0 : v).toFixed(dec).replace(".", ",").replace("-", "−"); }
+
+function dessinerRepere(L, H, P) {
+  const pas = pasGraduation(), majeur = pas < 1 ? 1 : pas * 2;
+  const [x0, y1] = versMonde(0, 0, L, H), [x1, y0] = versMonde(L, H, L, H);
+  ctx.lineWidth = 1;
+  for (const [p, coul] of [[pas, P.mineur], [majeur, P.majeur]]) {
+    ctx.strokeStyle = coul; ctx.beginPath();
+    for (let gx = Math.ceil(x0 / p) * p; gx <= x1; gx += p) { const [sx] = versEcran(gx, 0, L, H); ctx.moveTo(Math.round(sx) + .5, 0); ctx.lineTo(Math.round(sx) + .5, H); }
+    for (let gy = Math.ceil(y0 / p) * p; gy <= y1; gy += p) { const [, sy] = versEcran(0, gy, L, H); ctx.moveTo(0, Math.round(sy) + .5); ctx.lineTo(L, Math.round(sy) + .5); }
+    ctx.stroke();
+  }
+  // Axes passant par l'origine, avec flèches
+  const [ox, oy] = versEcran(0, 0, L, H);
+  ctx.save(); ctx.lineWidth = 1.6;
+  if (oy > 0 && oy < H) { ctx.strokeStyle = P.axeX; ctx.beginPath(); ctx.moveTo(0, oy); ctx.lineTo(L - 4, oy); ctx.stroke();
+    ctx.fillStyle = P.axeX; ctx.beginPath(); ctx.moveTo(L - 2, oy); ctx.lineTo(L - 10, oy - 4); ctx.lineTo(L - 10, oy + 4); ctx.fill(); }
+  if (ox > 0 && ox < L) { ctx.strokeStyle = P.axeY; ctx.beginPath(); ctx.moveTo(ox, H); ctx.lineTo(ox, 4); ctx.stroke();
+    ctx.fillStyle = P.axeY; ctx.beginPath(); ctx.moveTo(ox, 2); ctx.lineTo(ox - 4, 10); ctx.lineTo(ox + 4, 10); ctx.fill(); }
+  ctx.restore();
+}
+
+function graduations(L, H, P) {
+  // Valeurs en mètres le long des bords (comme une règle), lisibles même sans voir l'origine
+  const pas = pasGraduation(), lab = pas < 1 ? (camera.ppm > 150 ? 0.5 : 1) : pas;
+  const [x0, y1] = versMonde(0, 0, L, H), [x1, y0] = versMonde(L, H, L, H);
+  const dec = lab < 1 ? 1 : 0, haut = 64, bas = H - 76;
+  ctx.save(); ctx.font = "600 9.5px ui-monospace, Menlo, monospace"; ctx.textBaseline = "middle";
+  const pastille = (txt, x, y, coul, align) => {
+    ctx.textAlign = align; const w = ctx.measureText(txt).width + 6;
+    const bx = align === "center" ? x - w / 2 : align === "left" ? x - 3 : x - w + 3;
+    ctx.fillStyle = P.etiquette; ctx.fillRect(bx, y - 7, w, 14); ctx.fillStyle = coul; ctx.fillText(txt, x, y);
+  };
+  for (let gx = Math.ceil(x0 / lab) * lab; gx <= x1; gx += lab) {
+    const [sx] = versEcran(gx, 0, L, H); if (sx < 30 || sx > L - 50) continue;
+    pastille(nombre(gx, dec), sx, bas, P.axeX, "center");
+  }
+  for (let gy = Math.ceil(y0 / lab) * lab; gy <= y1; gy += lab) {
+    const [, sy] = versEcran(0, gy, L, H); if (sy < haut + 6 || sy > bas - 12) continue;
+    pastille(nombre(gy, dec), 4, sy, P.axeY, "left");
+  }
+  pastille("X (m) →", L - 50, bas, P.axeX, "right");
+  pastille("↑ Y (m)", 4, haut + 2, P.axeY, "left");
+  ctx.restore();
+}
+
+function dessinerCarte(L, H, t) {
+  const P = palette();
+  if (P.fond) { ctx.fillStyle = P.fond; ctx.fillRect(0, 0, L, H); }
+  if (carte && carteImg) {
+    const [sx, sy] = versEcran(carte.origine[0], carte.origine[1] + carte.hauteur * carte.resolution, L, H);
+    ctx.imageSmoothingEnabled = false;
+    ctx.drawImage(carteImg[vue] || carteImg.carte, sx, sy, carte.largeur * carte.resolution * camera.ppm, carte.hauteur * carte.resolution * camera.ppm);
+  }
+  dessinerRepere(L, H, P);
+  if (!etat) { texteCentre("CONNEXION AU ROBOT…", L, H); return; }
+  // Trace
+  dessinerChemin(etat.trace, "rgba(73,168,255,.45)", 2);
+  // Comparaison : les 3 chemins
+  if (comparaisonVisible) for (const r of comparaisonVisible.resultats) if (r.succes) dessinerChemin(r.points, COUL[r.algo], 2.5, [6, 4]);
+  // Chemin planifié
+  if (etat.plan && etat.plan.succes && ["en_route", "obstacle", "planification", "recul"].includes(etat.etat)) {
+    dessinerChemin(etat.plan.points, COUL[etat.plan.algo] || "#39e58c", 3);
+  }
+  // LiDAR dans le monde
+  if (etat.scan && etat.pose) {
+    const [px, py, pt] = etat.pose; ctx.fillStyle = "rgba(255,90,100,.95)";
+    for (const [a, r] of etat.scan) {
+      const [sx, sy] = versEcran(px + r * Math.cos(pt + a), py + r * Math.sin(pt + a), L, H);
+      ctx.fillRect(sx - 1.2, sy - 1.2, 2.4, 2.4);
+    }
+  }
+  // Base
+  if (etat.base) {
+    const [bx, by] = versEcran(etat.base[0], etat.base[1], L, H);
+    ctx.save(); ctx.strokeStyle = "#49a8ff"; ctx.fillStyle = "rgba(73,168,255,.15)"; ctx.lineWidth = 1.5;
+    ctx.beginPath(); ctx.arc(bx, by, 11, 0, 2 * Math.PI); ctx.fill(); ctx.stroke();
+    ctx.fillStyle = "#49a8ff"; ctx.font = "800 11px ui-monospace, Menlo, monospace"; ctx.textAlign = "center"; ctx.textBaseline = "middle";
+    ctx.fillText("H", bx, by + 0.5); ctx.restore();
+  }
+  // Lieux mémorisés
+  for (const [nom, p] of Object.entries(etat.lieux || {})) {
+    const [lx, ly] = versEcran(p[0], p[1], L, H);
+    ctx.save(); ctx.fillStyle = "#ffb547"; ctx.strokeStyle = "#1a1206"; ctx.lineWidth = 1.5;
+    ctx.beginPath(); ctx.moveTo(lx, ly - 7); ctx.lineTo(lx + 6, ly); ctx.lineTo(lx, ly + 7); ctx.lineTo(lx - 6, ly); ctx.closePath(); ctx.fill(); ctx.stroke();
+    ctx.font = "700 10px ui-monospace, Menlo, monospace"; ctx.lineWidth = 3; ctx.strokeStyle = "rgba(2,8,12,.85)";
+    ctx.strokeText(nom, lx + 9, ly + 3.5); ctx.fillText(nom, lx + 9, ly + 3.5); ctx.restore();
+  }
+  // Destination en cours et cible proposée
+  if (etat.but && ["en_route", "obstacle", "planification", "recul"].includes(etat.etat)) marqueur(etat.but[0], etat.but[1], "#39e58c", t, "BUT", L, H);
+  if (cible) {
+    marqueur(cible[0], cible[1], palette().cible, t, "", L, H);
+    // Lignes de rappel vers les axes : on lit X et Y comme sur un graphique
+    const [sx, sy] = versEcran(cible[0], cible[1], L, H), [ox, oy] = versEcran(0, 0, L, H);
+    ctx.save(); ctx.setLineDash([3, 4]); ctx.strokeStyle = palette().cible; ctx.globalAlpha = .55; ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.moveTo(sx, sy); ctx.lineTo(sx, Math.max(0, Math.min(H, oy))); ctx.moveTo(sx, sy); ctx.lineTo(Math.max(0, Math.min(L, ox)), sy); ctx.stroke(); ctx.restore();
+  }
+  if (etat.pose) dessinerRobot(etat.pose[0], etat.pose[1], etat.pose[2], L, H);
+  else if (!etat.localise) {
+    const p = (t / 1400) % 1;
+    ctx.save(); ctx.strokeStyle = "rgba(255,213,74," + (0.8 - 0.8 * p) + ")"; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.arc(L / 2, H / 2, 14 + p * Math.min(L, H) * 0.4, 0, 2 * Math.PI); ctx.stroke(); ctx.restore();
+    const n = etat.localisation ? etat.localisation.essais : 0;
+    texteCentre("JE COMPARE MON LIDAR À LA CARTE…" + (n ? "  (essai " + n + ")" : ""), L, H);
+  }
+  graduations(L, H, palette());
+}
+
+function texteCentre(txt, L, H) {
+  ctx.fillStyle = "#9fe8ff"; ctx.font = "600 12px ui-monospace, Menlo, monospace"; ctx.textAlign = "center";
+  ctx.fillText(txt, L / 2, H / 2); ctx.textAlign = "start";
+}
+
+function dessinerRadar(L, H, t) {
+  if (!etat) { texteCentre("CONNEXION AU ROBOT…", L, H); return; }
+  const cx = L / 2, cy = H / 2 + 4, portee = 3.0 / (camera.ppm / 70), k = (Math.min(L, H) / 2 - 30) / portee;
+  ctx.strokeStyle = "rgba(120,200,230,.18)"; ctx.fillStyle = "#5b7d8c"; ctx.font = "600 9.5px ui-monospace, Menlo, monospace";
+  const pas = portee > 2.5 ? 1 : 0.5;
+  for (let d = pas; d <= portee + 1e-6; d += pas) { ctx.beginPath(); ctx.arc(cx, cy, d * k, 0, 2 * Math.PI); ctx.stroke(); ctx.fillText(d + " m", cx + 4, cy - d * k + 11); }
+  ctx.beginPath(); ctx.moveTo(cx, cy - portee * k); ctx.lineTo(cx, cy + portee * k); ctx.moveTo(cx - portee * k, cy); ctx.lineTo(cx + portee * k, cy); ctx.stroke();
+  // balayage
+  const ang = (t / 600) % (2 * Math.PI), grad = ctx.createConicGradient ? ctx.createConicGradient(ang - Math.PI / 2, cx, cy) : null;
+  if (grad) { grad.addColorStop(0, "rgba(159,232,255,.22)"); grad.addColorStop(.08, "rgba(159,232,255,0)"); grad.addColorStop(1, "rgba(159,232,255,0)");
+    ctx.fillStyle = grad; ctx.beginPath(); ctx.arc(cx, cy, portee * k, 0, 2 * Math.PI); ctx.fill(); }
+  // zone de sécurité
+  ctx.fillStyle = (etat.obstacle_devant != null && etat.obstacle_devant < 0.25) ? "rgba(255,71,87,.35)" : "rgba(57,229,140,.10)";
+  ctx.beginPath(); ctx.moveTo(cx, cy); ctx.arc(cx, cy, 0.25 * k, -Math.PI / 2 - 0.35, -Math.PI / 2 + 0.35); ctx.closePath(); ctx.fill();
+  ctx.fillStyle = "#ff5a64";
+  for (const [a, r] of etat.scan || []) { if (r > portee * 1.4) continue; ctx.fillRect(cx - r * Math.sin(a) * k - 1.3, cy - r * Math.cos(a) * k - 1.3, 2.6, 2.6); }
+  ctx.save(); ctx.translate(cx, cy); ctx.fillStyle = "#e9f7ff"; ctx.beginPath(); ctx.arc(0, 0, Math.max(6, .105 * k), 0, 2 * Math.PI); ctx.fill();
+  ctx.fillStyle = "#0a1a22"; ctx.beginPath(); ctx.moveTo(0, -Math.max(6, .105 * k) * .75); ctx.lineTo(4, 3); ctx.lineTo(-4, 3); ctx.fill(); ctx.restore();
+}
+
+// ===================== TOUCHER L'ÉCRAN : choisir la destination / déplacer la vue =====================
+let geste = null;
+cv.addEventListener("pointerdown", (ev) => { geste = { x: ev.clientX, y: ev.clientY, cx: camera.x, cy: camera.y, bouge: false }; cv.setPointerCapture(ev.pointerId); });
+cv.addEventListener("pointermove", (ev) => {
+  if (!geste || vue === "radar") return;
+  const dx = ev.clientX - geste.x, dy = ev.clientY - geste.y;
+  if (Math.hypot(dx, dy) > 8) geste.bouge = true;
+  if (geste.bouge) { camera.suivre = false; camera.x = geste.cx - dx / camera.ppm; camera.y = geste.cy + dy / camera.ppm; }
+});
+cv.addEventListener("pointerup", (ev) => {
+  if (!geste) return;
+  if (!geste.bouge && vue !== "radar") {
+    const r = cv.getBoundingClientRect();
+    // Le point touché est arrondi à 5 cm (la taille d'une case de la carte) : valeurs nettes
+    cible = arrondir(versMonde(ev.clientX - r.left, ev.clientY - r.top, r.width, r.height));
+    bip("clic"); majFiche();
+  }
+  geste = null;
+});
+cv.addEventListener("wheel", (ev) => { ev.preventDefault(); zoomer(ev.deltaY < 0 ? 1.25 : 0.8); }, { passive: false });
+function zoomer(k) { camera.ppm = Math.max(20, Math.min(260, camera.ppm * k)); bip("clic"); }
+
+// ===================== BOUTONS =====================
+function appui(el, fn) {
+  el.addEventListener("click", (ev) => { ev.preventDefault(); if (el.disabled) return; bip("clic"); if (navigator.vibrate) navigator.vibrate(12); fn(); });
+}
+appui($("bA"), async () => {          // GO : lancer la mission autonome
+  if (!cible) { flash("CHOISIS D'ABORD UN POINT SUR LA CARTE"); return; }
+  const r = await api("/api/mission", { x: cible[0], y: cible[1], algo: etat && etat.algo });
+  if (r && r.ok) { cible = null; camera.suivre = true; $("panneau").classList.remove("visible"); comparaisonVisible = null; majFiche(); }
+  else flash("REFUSÉ : " + ((r && r.raison) || "pas de réponse").toUpperCase());
+});
+appui($("bB"), () => {                // B : annuler la mission / libérer l'arrêt d'urgence
+  if (etat && etat.arret_urgence) { api("/api/reprendre"); return; }
+  cible = null; majFiche(); api("/api/annuler");
+});
+appui($("bX"), async () => {          // X : retour à la base
+  const r = await api("/api/base", { algo: etat && etat.algo });
+  if (!(r && r.ok)) flash("REFUSÉ : " + ((r && r.raison) || "pas de réponse").toUpperCase()); else cible = null;
+});
+appui($("bY"), () => { vue = { carte: "plan", plan: "radar", radar: "carte" }[vue]; flash("VUE " + vue.toUpperCase()); majHUD(); });
+appui($("bVitesse"), async () => {     // VITESSE : 1 lent -> 2 normal -> 3 rapide (même en mission)
+  if (!etat) return;
+  const n = etat.vitesse_niveau % 3 + 1;
+  const r = await api("/api/vitesse", { niveau: n });
+  if (r && r.ok) { etat.vitesse_niveau = r.niveau; etat.v_max = r.v_max; majHUD();
+    flash(`VITESSE ${r.niveau} · ${r.v_max.toFixed(2)} M/S`); }
+});
+appui($("bAlgo"), () => {
+  if (!etat) return; const i = etat.algos.indexOf(etat.algo), a = etat.algos[(i + 1) % etat.algos.length];
+  etat.algo = a; api("/api/algo", { algo: a }); majHUD(); flash("ALGORITHME : " + a);
+});
+appui($("bCmp"), async () => {
+  const but = cible || (etat && etat.but);
+  if (!but) { flash("CHOISIS UN POINT SUR LA CARTE À COMPARER"); return; }
+  flash("CALCUL A* / DIJKSTRA / RRT…");
+  const c = await api("/api/comparer", { x: but[0], y: but[1] });
+  if (c && c.resultats) { comparaisonVisible = c; afficherComparaison(c); vue = "carte"; }
+});
+appui($("bLieux"), () => {
+  if (panneauLieux && $("panneau").classList.contains("visible")) { $("panneau").classList.remove("visible"); panneauLieux = null; return; }
+  comparaisonVisible = null; vue = "carte"; afficherLieux();
+});
+let raz = null;
+$("bRaz").addEventListener("pointerdown", () => { flash("MAINTIENS 1 S POUR EFFACER LA CARTE"); raz = setTimeout(() => { api("/api/effacer_carte"); bip("info"); flash("CARTE EFFACÉE"); }, 1000); });
+["pointerup", "pointerleave", "pointercancel"].forEach(t => $("bRaz").addEventListener(t, () => clearTimeout(raz)));
+document.querySelectorAll("[data-role=arret]").forEach(b => appui(b, () => {
+  if (etat && etat.arret_urgence) api("/api/reprendre"); else { relacher(); api("/api/arret"); }
+  if (navigator.vibrate) navigator.vibrate(120);
+}));
+appui($("zoomPlus"), () => zoomer(1.3)); appui($("zoomMoins"), () => zoomer(1 / 1.3));
+appui($("recentrer"), () => { camera.suivre = true; });
+appui($("simObstacle"), () => api("/api/sim/obstacle"));
+appui($("simRetirer"), () => api("/api/sim/retirer"));
+
+// ===================== CIBLE PRÉCISE : fiche, réglage fin, saisie X / Y =====================
+function arrondir(p) { return [Math.round(p[0] / 0.05) * 0.05, Math.round(p[1] / 0.05) * 0.05]; }
+function majFiche() {
+  const f = $("fiche"), e = etat;
+  const p = e && e.pose;
+  $("posRobot").textContent = (p && vue !== "radar") ? `ROBOT  X ${nombre(p[0], 2)}  Y ${nombre(p[1], 2)} m  · cap ${Math.round(((p[2] * 180 / Math.PI) % 360 + 360) % 360)}°` : "";
+  const visible = !!cible && vue !== "radar" && !$("panneau").classList.contains("visible");
+  f.classList.toggle("visible", visible);
+  if (!visible) return;
+  $("fX").textContent = "X " + nombre(cible[0], 2);
+  $("fY").textContent = "Y " + nombre(cible[1], 2) + " m";
+  if (p) {
+    const d = Math.hypot(cible[0] - p[0], cible[1] - p[1]);
+    let a = Math.atan2(cible[1] - p[1], cible[0] - p[0]) - p[2]; a = Math.atan2(Math.sin(a), Math.cos(a)) * 180 / Math.PI;
+    const cote = Math.abs(a) < 10 ? "droit devant" : Math.abs(a) > 170 ? "derrière" : `${Math.round(Math.abs(a))}° à ${a > 0 ? "gauche" : "droite"}`;
+    $("fInfo").textContent = `à ${nombre(d, 2)} m du robot, ${cote} · A = GO`;
+  } else $("fInfo").textContent = "A = GO";
+}
+$("fiche").addEventListener("click", (ev) => {
+  const b = ev.target.closest("button"); if (!b || !cible) return;
+  const n = b.dataset.n, pas = 0.05;
+  if (n === "+x") cible[0] += pas; else if (n === "-x") cible[0] -= pas;
+  else if (n === "+y") cible[1] += pas; else if (n === "-y") cible[1] -= pas;
+  else if (n === "xy") { ouvrirSaisieXY(); return; }
+  else if (n === "effacer") cible = null;
+  if (cible) cible = arrondir(cible);
+  bip("clic"); majFiche();
+});
+function ouvrirSaisieXY() {
+  panneauLieux = null; comparaisonVisible = null;
+  const v = (k) => cible ? nombre(cible[k], 2).replace("−", "-") : "";
+  $("panneau").innerHTML = `<h3><span>ALLER À UN POINT PRÉCIS</span><button class="fermer" data-fermer>✕</button></h3>
+    <div class="note" style="margin:0 0 6px">Coordonnées en mètres dans le repère de la carte : origine (0 ; 0) = base H, X vers la droite de l'écran, Y vers le haut.</div>
+    <div class="saisie saisie-xy"><label style="color:#ff8a96">X<input id="saisieX" inputmode="decimal" placeholder="ex. 1,5" value="${v(0)}" aria-label="X en mètres"></label>
+      <label style="color:#5cf0a0">Y<input id="saisieY" inputmode="decimal" placeholder="ex. -0,8" value="${v(1)}" aria-label="Y en mètres"></label></div>
+    <div class="actions" style="margin-top:8px">
+      <button class="act" data-xy="placer">PLACER LA CIBLE</button>
+      <button class="act principal" data-xy="go">PLACER ET GO</button>
+    </div>`;
+  $("panneau").classList.add("visible"); majFiche();
+  setTimeout(() => $("saisieX").focus(), 50);
+}
+function lireNombre(id) { const s = $(id).value.trim().replace(",", ".").replace("−", "-"); return s === "" ? NaN : Number(s); }
+$("panneau").addEventListener("click", async (ev) => {
+  const b = ev.target.closest("[data-xy]"); if (!b) return;
+  const x = lireNombre("saisieX"), y = lireNombre("saisieY");
+  if (!Number.isFinite(x) || !Number.isFinite(y) || Math.abs(x) > 8 || Math.abs(y) > 8) { flash("COORDONNÉES INVALIDES (ENTRE −8 ET 8 M)"); return; }
+  cible = arrondir([x, y]); $("panneau").classList.remove("visible");
+  camera.suivre = false; camera.x = (cible[0] + (etat && etat.pose ? etat.pose[0] : cible[0])) / 2; camera.y = (cible[1] + (etat && etat.pose ? etat.pose[1] : cible[1])) / 2;
+  if (vue === "radar") vue = "carte";
+  bip("clic"); majFiche();
+  if (b.dataset.xy === "go") $("bA").click();
+});
+appui($("boutonXY"), ouvrirSaisieXY);
+
+let minuterieFlash = null;
+function flash(txt) {
+  const b = $("bulle"); b.textContent = txt; b.className = "bulle visible";
+  clearTimeout(minuterieFlash); minuterieFlash = setTimeout(() => b.classList.remove("visible"), 2200);
+}
+
+// ===================== JOYSTICK (secours manuel) =====================
+const stick = $("stick"), chapeau = $("chapeau");
+function placer(ev) {
+  const r = stick.getBoundingClientRect(), rayon = r.width / 2 - 22;
+  let dx = ev.clientX - (r.left + r.width / 2), dy = ev.clientY - (r.top + r.height / 2);
+  const d = Math.hypot(dx, dy); if (d > rayon) { dx *= rayon / d; dy *= rayon / d; }
+  joy.x = dx / rayon; joy.y = dy / rayon;
+  if (Math.abs(joy.x) < 0.15) joy.x = 0; if (Math.abs(joy.y) < 0.15) joy.y = 0;
+  chapeau.style.transform = `translate(${dx}px, ${dy}px)`;
+}
+function relacher() {
+  if (!joy.actif) return;
+  joy.actif = false; joy.x = joy.y = 0; stick.classList.remove("actif"); chapeau.style.transform = "";
+  for (let i = 0; i < 3; i++) setTimeout(() => api("/api/joystick", { v: 0, w: 0 }), i * 60);
+}
+stick.addEventListener("pointerdown", (ev) => { ev.preventDefault(); joy.actif = true; joy.id = ev.pointerId; stick.classList.add("actif"); stick.setPointerCapture(ev.pointerId); placer(ev); });
+stick.addEventListener("pointermove", (ev) => { if (joy.actif && ev.pointerId === joy.id) placer(ev); });
+["pointerup", "pointercancel", "lostpointercapture"].forEach(t => stick.addEventListener(t, relacher));
+document.addEventListener("visibilitychange", () => { if (document.hidden) relacher(); });
+window.addEventListener("blur", relacher);
+setInterval(() => {
+  if (!joy.actif || !etat || etat.arret_urgence) return;
+  if (joy.x === 0 && joy.y === 0 && etat.etat !== "manuel") return;   // pas de prise de contrôle involontaire
+  api("/api/joystick", { v: -joy.y * etat.v_max, w: -joy.x * etat.w_max });
+}, 100);
+
+
+// ===================== MODE D'EMPLOI =====================
+const guide = $("guide");
+function ouvrirGuide() {
+  guide.classList.add("ouvert"); guide.setAttribute("aria-hidden", "false");
+  document.querySelectorAll(".section").forEach((sct, i) => { sct.style.transitionDelay = (80 + i * 45) + "ms"; });
+  setTimeout(() => document.querySelectorAll(".section").forEach(sct => sct.style.transitionDelay = ""), 900);
+  remplirListeVoix(); majReglagesVoix();
+}
+function fermerGuide() { guide.classList.remove("ouvert"); guide.setAttribute("aria-hidden", "true"); }
+$("ouvrirGuide").addEventListener("click", (ev) => { ev.stopPropagation(); bip("clic"); ouvrirGuide(); });
+$("guideAccueil").addEventListener("click", (ev) => { ev.stopPropagation(); ouvrirGuide(); });
+guide.addEventListener("click", (ev) => { if (ev.target.closest("[data-fermer-guide]")) fermerGuide(); });
+document.addEventListener("keydown", (ev) => { if (ev.key === "Escape") fermerGuide(); });
+document.querySelectorAll(".section > button").forEach(b => b.addEventListener("click", () => {
+  const sct = b.parentElement, deja = sct.classList.contains("deplie");
+  document.querySelectorAll(".section.deplie").forEach(x => x.classList.remove("deplie"));
+  if (!deja) { sct.classList.add("deplie"); setTimeout(() => sct.scrollIntoView({ behavior: "smooth", block: "nearest" }), 250); }
+}));
+// Glisser la feuille vers le bas pour la fermer
+(() => {
+  const f = guide.querySelector(".guide-feuille"); let y0 = null, dy = 0;
+  f.querySelector(".guide-tete").addEventListener("touchstart", e => { y0 = e.touches[0].clientY; f.style.transition = "none"; }, { passive: true });
+  f.querySelector(".guide-tete").addEventListener("touchmove", e => { if (y0 === null) return; dy = Math.max(0, e.touches[0].clientY - y0); f.style.transform = `translate(-50%, ${dy}px)`; }, { passive: true });
+  f.querySelector(".guide-tete").addEventListener("touchend", () => { f.style.transition = ""; f.style.transform = ""; if (dy > 90) fermerGuide(); y0 = null; dy = 0; });
+})();
+
+// Réglages de la voix
+function remplirListeVoix() {
+  const sel = $("choixVoix"); if (!sel) return;
+  const liste = voixFrancaises();
+  sel.innerHTML = liste.length ? liste.map(v => `<option value="${v.name.replace(/"/g, "&quot;")}">${v.name}${/Natural|Neural|Online|Premium|Enhanced|Amélior|Google/i.test(v.name) ? " ★" : ""}</option>`).join("")
+                               : "<option>Voix par défaut du téléphone</option>";
+  if (son.voix) sel.value = son.voix.name;
+}
+function majReglagesVoix() {
+  $("debitVoix").value = PREFS.debit || 1; $("tonVoix").value = PREFS.ton || 1;
+  $("valDebit").textContent = "× " + Number($("debitVoix").value).toFixed(2);
+  $("valTon").textContent = "× " + Number($("tonVoix").value).toFixed(2);
+  $("muetVoix").textContent = PREFS.muet ? "Réactiver la voix" : "Couper la voix";
+}
+$("choixVoix").addEventListener("change", (e) => {
+  PREFS.nom = e.target.value; sauverPrefs(); choisirVoix(); parler("Bonjour, je suis votre TurtleBot.", true);
+});
+$("debitVoix").addEventListener("input", (e) => { PREFS.debit = Number(e.target.value); sauverPrefs(); majReglagesVoix(); });
+$("tonVoix").addEventListener("input", (e) => { PREFS.ton = Number(e.target.value); sauverPrefs(); majReglagesVoix(); });
+$("testerVoix").addEventListener("click", () => {
+  if (!son.actif) initSon();
+  bip("obstacle"); setTimeout(() => parler("Oh ! Attention, obstacle ! Je contourne.", true), 380);
+});
+$("muetVoix").addEventListener("click", () => { PREFS.muet = !PREFS.muet; sauverPrefs(); majReglagesVoix(); });
+
+// ===================== DÉMARRAGE =====================
+$("allumer").addEventListener("click", () => {
+  initSon(); bip("depart");
+  $("demarrage").classList.add("cache"); setTimeout(() => $("demarrage").remove(), 600);
+  setTimeout(() => parler("Station de contrôle prête."), 400);
+});
+window.addEventListener("resize", () => taille());
+boucleEtat();
+requestAnimationFrame(dessiner);
+</script>
+</body>
+</html>

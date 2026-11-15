@@ -1,0 +1,16 @@
+# Contenu à mettre dans /etc/netplan/50-cloud-init.yaml sur la Raspberry Pi.
+# Garde exactement les espaces (2 par niveau, jamais de tabulation).
+# Remplace robotwifi / MOT_DE_PASSE_WIFI par le nom et le mot de passe exacts de ton Wi-Fi.
+network:
+  version: 2
+  ethernets:
+    eth0:
+      dhcp4: true
+      optional: true
+  wifis:
+    wlan0:
+      dhcp4: true
+      optional: true
+      access-points:
+        "robotwifi":
+          password: "MOT_DE_PASSE_WIFI"

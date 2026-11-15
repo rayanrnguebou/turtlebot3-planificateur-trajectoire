@@ -1,0 +1,17 @@
+__pycache__/
+*.pyc
+.pytest_cache/
+.venv/
+venv/
+# Cartes enregistrées par la station (propres à chaque salle et à chaque robot)
+07_Station_mobile/cartes/
+*.tmp.npz
+# ROS 2
+build/
+install/
+log/
+# Éditeurs / systèmes
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db

@@ -1,0 +1,19 @@
+# Paramètres de la navigation autonome. Modifie-les ici puis relance le launch
+# (avec --symlink-install, pas besoin de recompiler).
+planificateur:
+  ros__parameters:
+    algorithme: "astar"          # astar | dijkstra | rrt
+    rayon_securite: 0.15         # m : rayon du Burger (0.105) + marge
+    lissage: true                # supprime les zigzags du chemin
+    inconnu_libre: false         # true pour traverser les zones pas encore cartographiées
+    carte_transient_local: false # true si la carte vient de map_server (carte enregistrée)
+
+suivi_trajectoire:
+  ros__parameters:
+    distance_visee: 0.25         # m : plus grand = plus doux, mais coupe les virages
+    vitesse_max: 0.15            # m/s (maximum du Burger : 0.22)
+    rotation_max: 1.5            # rad/s (maximum du Burger : 2.84)
+    tolerance_arrivee: 0.08      # m
+    distance_securite: 0.20      # m : arrêt d'urgence si un obstacle est plus près, devant
+    delai_replanification: 3.0   # s bloqué avant de demander un nouveau chemin
+    twist_stamped: false         # true uniquement sous ROS 2 Jazzy
