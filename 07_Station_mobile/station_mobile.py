@@ -263,7 +263,16 @@ def main():
         if simulation:
             print("--slam demande ROS 2 et slam_toolbox : ignoré en simulation.")
         else:
-            cerveau.activer_slam()
+            try:
+                import slam_toolbox.srv  # noqa: F401
+                cerveau.activer_slam()
+            except ImportError:
+                print("=" * 62)
+                print("  slam_toolbox n'est pas installé sur ce robot : la station utilise")
+                print("  sa cartographie maison (tout le reste fonctionne).")
+                print("  Pour l'installer (une seule fois, robot connecté à Internet) :")
+                print("    sudo apt update && sudo apt install -y ros-humble-slam-toolbox")
+                print("=" * 62)
     cerveau.fichier_carte = fichier
     carte_chargee = False
     if os.path.isfile(fichier) and not args.nouvelle_carte:
